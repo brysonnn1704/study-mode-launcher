@@ -14,6 +14,7 @@ import logging
 import threading
 from typing import Dict, Any, List, Optional, Tuple
 
+import math
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 from PIL import Image
@@ -59,6 +60,11 @@ class StudyLauncherApp(ctk.CTk):
         self.closed_distractions: List[Dict[str, Any]] = []
         self.last_launched_items: List[Dict[str, Any]] = []
         self.last_failed_items: List[Dict[str, Any]] = []
+
+        # Lightweight Virtual Pagination & Rendering State
+        self.current_page = 0
+        self.page_size = 15
+        self._search_debounce_job = None
 
         # Pomodoro Focus Timer
         self.pomodoro = PomodoroTimer()
@@ -329,7 +335,7 @@ class StudyLauncherApp(ctk.CTk):
             height=34
         )
         self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.search_entry.bind("<KeyRelease>", lambda e: self._refresh_items_list())
+        self.search_entry.bind("<KeyRelease>", self._on_search_key)
 
         self.lbl_item_stats = ctk.CTkLabel(search_bar, text="0 items (0 enabled)", text_color="gray", font=FONT_CAPTION)
         self.lbl_item_stats.pack(side="right", padx=(0, 5))
@@ -368,7 +374,52 @@ class StudyLauncherApp(ctk.CTk):
 
         # 4. Scrollable Items List
         self.items_scroll = ctk.CTkScrollableFrame(self, corner_radius=8)
-        self.items_scroll.pack(fill="both", expand=True, padx=20, pady=(4, 10))
+        self.items_scroll.pack(fill="both", expand=True, padx=20, pady=(4, 6))
+
+        # Pagination & View Controls Bar
+        self.page_bar = ctk.CTkFrame(self, fg_color="transparent", height=32)
+        self.page_bar.pack(fill="x", padx=20, pady=(0, 6))
+
+        self.btn_prev_page = ctk.CTkButton(
+            self.page_bar,
+            text="◀ Prev",
+            width=70,
+            height=28,
+            fg_color=("gray85", "gray25"),
+            text_color=("black", "white"),
+            command=self._prev_page
+        )
+        self.btn_prev_page.pack(side="left", padx=(0, 4))
+
+        self.lbl_page_info = ctk.CTkLabel(
+            self.page_bar,
+            text="Page 1 of 1",
+            font=FONT_CAPTION,
+            text_color="gray"
+        )
+        self.lbl_page_info.pack(side="left", padx=6)
+
+        self.btn_next_page = ctk.CTkButton(
+            self.page_bar,
+            text="Next ▶",
+            width=70,
+            height=28,
+            fg_color=("gray85", "gray25"),
+            text_color=("black", "white"),
+            command=self._next_page
+        )
+        self.btn_next_page.pack(side="left", padx=(4, 12))
+
+        ctk.CTkLabel(self.page_bar, text="Per page:", font=FONT_CAPTION, text_color="gray").pack(side="left", padx=(8, 4))
+        self.page_size_menu = ctk.CTkOptionMenu(
+            self.page_bar,
+            values=["15", "30", "50", "All"],
+            width=75,
+            height=28,
+            command=self._on_page_size_change
+        )
+        self.page_size_menu.set("15")
+        self.page_size_menu.pack(side="left")
 
         # 5. Bottom Action Bar
         bottom_bar = ctk.CTkFrame(self, corner_radius=0, height=85)
@@ -743,8 +794,42 @@ class StudyLauncherApp(ctk.CTk):
 
     def _clear_search(self):
         self.search_entry.delete(0, 'end')
+        self.current_page = 0
         self._refresh_items_list()
         self.focus_set()
+
+    def _on_search_key(self, event=None):
+        if self._search_debounce_job is not None:
+            try:
+                self.after_cancel(self._search_debounce_job)
+            except Exception:
+                pass
+        self._search_debounce_job = self.after(120, self._apply_search)
+
+    def _apply_search(self):
+        self._search_debounce_job = None
+        self.current_page = 0
+        self._refresh_items_list()
+
+    def _prev_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._refresh_items_list()
+
+    def _next_page(self):
+        self.current_page += 1
+        self._refresh_items_list()
+
+    def _on_page_size_change(self, val: str):
+        if val == "All":
+            self.page_size = 9999
+        else:
+            try:
+                self.page_size = int(val)
+            except ValueError:
+                self.page_size = 15
+        self.current_page = 0
+        self._refresh_items_list()
 
     def _open_shortcuts(self):
         ShortcutsDialog(self)
@@ -782,10 +867,20 @@ class StudyLauncherApp(ctk.CTk):
         save_config(self.config)
         items = self.config.get("items", [])
         enabled_count = sum(1 for it in items if it.get("enabled", False))
-        self.lbl_item_stats.configure(text=f"{len(items)} items ({enabled_count} enabled)")
+        q = self.search_entry.get().strip().casefold()
+        if q:
+            filtered_count = len([
+                it for it in items
+                if q in it.get("name", "").casefold() or q in it.get("type", "").casefold() or
+                   q in it.get("target", "").casefold() or q in it.get("note", "").casefold() or
+                   q in it.get("browser", "").casefold() or q in it.get("profile", "").casefold()
+            ])
+            self.lbl_item_stats.configure(text=f"{filtered_count} of {len(items)} items ({enabled_count} enabled)")
+        else:
+            self.lbl_item_stats.configure(text=f"{len(items)} of {len(items)} items ({enabled_count} enabled)")
 
     # -----------------------------------------------------------------------
-    # Items List Rendering
+    # Items List Rendering (Lightweight Virtual Viewport)
     # -----------------------------------------------------------------------
     def _refresh_items_list(self):
         for child in self.items_scroll.winfo_children():
@@ -807,9 +902,17 @@ class StudyLauncherApp(ctk.CTk):
                 filtered_items.append((idx, it))
 
         enabled_count = sum(1 for it in items if it.get("enabled", False))
-        self.lbl_item_stats.configure(text=f"{len(filtered_items)} of {len(items)} items ({enabled_count} enabled)")
+        total_filtered = len(filtered_items)
+        self.lbl_item_stats.configure(text=f"{total_filtered} of {len(items)} items ({enabled_count} enabled)")
 
         if not filtered_items:
+            try:
+                self.lbl_page_info.configure(text="Page 0 of 0 (0 items)")
+                self.btn_prev_page.configure(state="disabled")
+                self.btn_next_page.configure(state="disabled")
+            except Exception:
+                pass
+
             empty_lbl = ctk.CTkLabel(
                 self.items_scroll,
                 text="No items match your query." if q else "No workspace items yet. Click '+ Add New Item' or '💡 Suggest Apps' above!",
@@ -819,7 +922,26 @@ class StudyLauncherApp(ctk.CTk):
             empty_lbl.pack(pady=40)
             return
 
-        for original_idx, it in filtered_items:
+        # Pagination calculations
+        page_sz = self.page_size if self.page_size > 0 else 15
+        total_pages = max(1, math.ceil(total_filtered / page_sz))
+        if self.current_page >= total_pages:
+            self.current_page = max(0, total_pages - 1)
+
+        start_idx = self.current_page * page_sz
+        end_idx = min(start_idx + page_sz, total_filtered)
+        page_slice = filtered_items[start_idx:end_idx]
+
+        try:
+            self.lbl_page_info.configure(
+                text=f"Page {self.current_page + 1} of {total_pages} ({start_idx + 1}–{end_idx} of {total_filtered})"
+            )
+            self.btn_prev_page.configure(state="normal" if self.current_page > 0 else "disabled")
+            self.btn_next_page.configure(state="normal" if (self.current_page + 1) < total_pages else "disabled")
+        except Exception:
+            pass
+
+        for original_idx, it in page_slice:
             self._render_item_card(original_idx, it, len(items))
 
     def _render_item_card(self, idx: int, item: Dict[str, Any], total_count: int):
@@ -896,57 +1018,38 @@ class StudyLauncherApp(ctk.CTk):
         )
         badge.pack(side="left", padx=4)
 
+        # Consolidate extra metadata badges into a single compact tag (saves ~100 canvas objects)
+        extra_badges = []
         delay_override = item.get("delay")
         if delay_override is not None:
-            delay_badge = ctk.CTkLabel(
-                name_row,
-                text=f"⏱️ {delay_override}s",
-                font=FONT_CAPTION,
-                fg_color=("gray80", "gray30"),
-                corner_radius=4
-            )
-            delay_badge.pack(side="left", padx=4)
+            extra_badges.append(f"⏱️ {delay_override}s")
 
-        # Window Position badge
         pos = item.get("window_position", "default")
         if pos and pos != "default":
             pos_labels = {
-                "left_half": "◧ Left Half",
-                "right_half": "◨ Right Half",
+                "left_half": "◧ Left",
+                "right_half": "◨ Right",
                 "maximize": "🗖 Maximize",
                 "center": "▣ Center"
             }
-            pos_badge = ctk.CTkLabel(
-                name_row,
-                text=f" {pos_labels.get(pos, pos)} ",
-                font=FONT_CAPTION,
-                fg_color=("gray80", "gray30"),
-                corner_radius=4
-            )
-            pos_badge.pack(side="left", padx=4)
+            extra_badges.append(pos_labels.get(pos, pos))
 
-        # Process Behavior badge
         beh = item.get("launch_behavior", "always")
         if beh == "skip_if_running":
-            beh_badge = ctk.CTkLabel(
-                name_row,
-                text=" ⚡ Skip if running ",
-                font=FONT_CAPTION,
-                fg_color=("#FEF3C7", "#78350F"),
-                text_color=("#92400E", "#FCD34D"),
-                corner_radius=4
-            )
-            beh_badge.pack(side="left", padx=4)
+            extra_badges.append("⚡ Skip if running")
         elif beh == "focus_if_running":
-            beh_badge = ctk.CTkLabel(
+            extra_badges.append("⚡ Focus if running")
+
+        if extra_badges:
+            extra_badge = ctk.CTkLabel(
                 name_row,
-                text=" ⚡ Focus if running ",
+                text=f" {'  •  '.join(extra_badges)} ",
                 font=FONT_CAPTION,
-                fg_color=("#E0E7FF", "#3730A3"),
-                text_color=("#3730A3", "#C7D2FE"),
+                fg_color=("gray80", "gray28"),
+                text_color=("gray20", "gray80"),
                 corner_radius=4
             )
-            beh_badge.pack(side="left", padx=4)
+            extra_badge.pack(side="left", padx=4)
 
         target_preview = item.get("target", "")
         if len(target_preview) > 55:
