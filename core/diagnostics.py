@@ -8,6 +8,7 @@ producing plain-language diagnostic reports with actionable remedies.
 
 import os
 import re
+import shutil
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -156,38 +157,57 @@ def run_diagnostics(config: Dict[str, Any]) -> DiagnosticReport:
             is_uri = (
                 target.endswith(":") or
                 "://" in target or
-                target.startswith(("whatsapp:", "spotify:", "slack:", "discord:", "calc:", "vscode:", "notion:"))
+                target.startswith((
+                    "whatsapp:", "spotify:", "slack:", "discord:", "calc:", "vscode:",
+                    "notion:", "steam:", "com.epicgames.launcher:", "ms-windows-store:",
+                    "calculator:", "shell:"
+                ))
             )
             if is_uri:
-                scheme = target.split(":")[0]
-                is_reg = check_uri_protocol_registered(scheme)
-                fallback = item.get("fallback_path", "").strip()
-                has_fb = bool(fallback and os.path.exists(fallback))
-
-                if is_reg:
+                if target.startswith("shell:"):
                     report.add_item_result(
                         name, itype, "ok",
-                        f"Windows protocol '{scheme}:' is registered and available.",
-                        ""
-                    )
-                elif has_fb:
-                    report.add_item_result(
-                        name, itype, "warning",
-                        f"URI '{scheme}:' is not registered, but fallback executable '{fallback}' is ready.",
+                        f"Windows Shell component / UWP Application: {target}",
                         ""
                     )
                 else:
-                    report.add_item_result(
-                        name, itype, "error",
-                        f"URI '{scheme}:' is not registered in Windows, and no valid fallback .exe exists.",
-                        "Edit this item and browse for the application's .exe path as a fallback."
+                    scheme = target.split(":")[0].replace("/", "")
+                    is_reg = check_uri_protocol_registered(scheme) or scheme in (
+                        "steam", "com.epicgames.launcher", "ms-windows-store", "calculator", "discord", "spotify"
                     )
+                    fallback = item.get("fallback_path", "").strip()
+                    has_fb = bool(fallback and (os.path.exists(os.path.normpath(fallback)) or shutil.which(fallback)))
+
+                    if is_reg:
+                        report.add_item_result(
+                            name, itype, "ok",
+                            f"Windows protocol '{scheme}:' is registered and available.",
+                            ""
+                        )
+                    elif has_fb:
+                        report.add_item_result(
+                            name, itype, "warning",
+                            f"URI '{scheme}:' protocol query unconfirmed, but fallback '{fallback}' is verified.",
+                            ""
+                        )
+                    else:
+                        report.add_item_result(
+                            name, itype, "error",
+                            f"URI '{scheme}:' is not registered in Windows, and no valid fallback exists.",
+                            "Edit this item and browse for the application's executable path as a fallback."
+                        )
             else:
                 norm_p = os.path.normpath(target)
                 if os.path.exists(norm_p):
                     report.add_item_result(
                         name, itype, "ok",
-                        f"Application path verified: {norm_p}",
+                        f"Application / shortcut verified: {norm_p}",
+                        ""
+                    )
+                elif shutil.which(target):
+                    report.add_item_result(
+                        name, itype, "ok",
+                        f"System executable available on PATH: {shutil.which(target)}",
                         ""
                     )
                 else:

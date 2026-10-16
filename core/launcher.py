@@ -9,6 +9,7 @@ running process detection, and dynamic variable expansion.
 import os
 import sys
 import time
+import shutil
 import logging
 import datetime
 import threading
@@ -241,31 +242,59 @@ class LaunchEngine:
                 is_uri = (
                     target.endswith(":") or
                     "://" in target or
-                    target.startswith(("whatsapp:", "spotify:", "slack:", "discord:", "calc:", "vscode:", "notion:"))
+                    target.startswith((
+                        "whatsapp:", "spotify:", "slack:", "discord:", "calc:", "vscode:",
+                        "notion:", "steam:", "com.epicgames.launcher:", "ms-windows-store:",
+                        "calculator:", "shell:"
+                    ))
                 )
                 if is_uri:
                     try:
                         os.startfile(target)
-                        return True, f"Launched URI: {target}"
+                        return True, f"Launched: {target}"
                     except Exception as uri_err:
                         fallback = substitute_variables(item.get("fallback_path", ""), context).strip()
-                        if fallback and os.path.exists(fallback):
-                            proc = subprocess.Popen([fallback])
-                            if position_mode and position_mode != "default":
-                                cls._schedule_window_positioning(proc.pid, position_mode)
-                            return True, f"URI launch failed ({uri_err}); opened fallback: {fallback}"
+                        if fallback:
+                            norm_fb = os.path.normpath(fallback)
+                            found_fb = norm_fb if os.path.exists(norm_fb) else shutil.which(fallback)
+                            if found_fb:
+                                try:
+                                    if found_fb.lower().endswith((".lnk", ".url")):
+                                        os.startfile(found_fb)
+                                    else:
+                                        proc = subprocess.Popen([found_fb])
+                                        if position_mode and position_mode != "default":
+                                            cls._schedule_window_positioning(proc.pid, position_mode)
+                                    return True, f"URI launch failed ({uri_err}); opened fallback: {fallback}"
+                                except Exception as fb_err:
+                                    return False, f"Failed fallback ({fb_err})"
                         return False, (
-                            f"Failed to open URI '{target}' ({uri_err}). "
+                            f"Failed to open '{target}' ({uri_err}). "
                             f"Please configure an executable fallback path in Item Settings."
                         )
                 else:
                     norm_path = os.path.normpath(target)
-                    if not os.path.exists(norm_path):
-                        return False, f"Application path does not exist: {norm_path}"
-                    proc = subprocess.Popen([norm_path])
-                    if position_mode and position_mode != "default":
-                        cls._schedule_window_positioning(proc.pid, position_mode)
-                    return True, f"Launched application: {norm_path}"
+                    found_path = norm_path if os.path.exists(norm_path) else shutil.which(target)
+                    if not found_path:
+                        return False, f"Application path does not exist: {target}"
+
+                    try:
+                        # For shortcuts (.lnk, .url), Windows Shell handles resolution, arguments, and working directory
+                        if found_path.lower().endswith((".lnk", ".url")):
+                            os.startfile(found_path)
+                            return True, f"Launched shortcut: {found_path}"
+                        else:
+                            try:
+                                proc = subprocess.Popen([found_path])
+                                if position_mode and position_mode != "default":
+                                    cls._schedule_window_positioning(proc.pid, position_mode)
+                                return True, f"Launched application: {found_path}"
+                            except (PermissionError, OSError):
+                                # Handles WinError 740 (elevation required) or WinError 193 via Windows Shell
+                                os.startfile(found_path)
+                                return True, f"Launched application via Windows Shell: {found_path}"
+                    except Exception as launch_err:
+                        return False, f"Error launching {target}: {launch_err}"
 
             # 3. FILE
             elif itype == "file":

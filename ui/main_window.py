@@ -71,8 +71,8 @@ class StudyLauncherApp(ctk.CTk):
         ctk.set_default_color_theme(self.config.get("accent_color", "blue"))
 
         self.title("Study Mode Launcher")
-        self.geometry("980x750")
-        self.minsize(840, 620)
+        self.geometry("1060x780")
+        self.minsize(860, 620)
 
         # Set Window Icon if present
         bundle_dir = get_bundle_dir()
@@ -104,11 +104,11 @@ class StudyLauncherApp(ctk.CTk):
     # -----------------------------------------------------------------------
     def _build_main_ui(self):
         # 1. Top Header Bar
-        header = ctk.CTkFrame(self, corner_radius=0, height=68)
+        header = ctk.CTkFrame(self, corner_radius=0, height=64)
         header.pack(fill="x", side="top")
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(side="left", padx=20, pady=12)
+        title_box.pack(side="left", padx=(16, 8), pady=10)
 
         lbl_logo = ctk.CTkLabel(
             title_box,
@@ -119,102 +119,103 @@ class StudyLauncherApp(ctk.CTk):
 
         lbl_sub = ctk.CTkLabel(
             title_box,
-            text="Launch personalized study workspaces with one click",
+            text="Launch personalized workspaces with one click",
             font=FONT_CAPTION,
             text_color="gray"
         )
         lbl_sub.pack(anchor="w")
 
         hdr_right = ctk.CTkFrame(header, fg_color="transparent")
-        hdr_right.pack(side="right", padx=20, pady=12)
+        hdr_right.pack(side="right", padx=(8, 16), pady=10)
 
         # Dark / Light Theme Toggle
         cur_theme = self.config.get("theme", "dark")
         self.theme_switch = ctk.CTkSwitch(
             hdr_right,
-            text="🌙 Dark" if cur_theme == "dark" else "☀️ Light",
+            text="🌙" if cur_theme == "dark" else "☀️",
+            width=38,
             command=self._toggle_theme
         )
         if cur_theme == "dark":
             self.theme_switch.select()
         else:
             self.theme_switch.deselect()
-        self.theme_switch.pack(side="left", padx=10)
+        self.theme_switch.pack(side="left", padx=(4, 6))
 
         # Notes & Audio Button
         btn_notes = ctk.CTkButton(
             hdr_right,
-            text="📝 Notes & Audio",
-            width=125,
+            text="📝 Notes",
+            width=78,
             fg_color=("gray80", "gray25"),
             text_color=("black", "white"),
             command=self._open_notes
         )
-        btn_notes.pack(side="left", padx=5)
+        btn_notes.pack(side="left", padx=2)
 
         # Diagnostics Button
         btn_diag = ctk.CTkButton(
             hdr_right,
-            text="🔍 Check Setup",
-            width=110,
+            text="🔍 Setup",
+            width=74,
             fg_color=("gray80", "gray25"),
             text_color=("black", "white"),
             command=self._open_diagnostics
         )
-        btn_diag.pack(side="left", padx=5)
+        btn_diag.pack(side="left", padx=2)
 
         # Stats & Analytics Button
         btn_stats = ctk.CTkButton(
             hdr_right,
             text="📊 Stats",
-            width=85,
+            width=68,
             fg_color=("gray80", "gray25"),
             text_color=("black", "white"),
             command=self._open_stats
         )
-        btn_stats.pack(side="left", padx=5)
+        btn_stats.pack(side="left", padx=2)
 
         # Schedule Button
         btn_sched = ctk.CTkButton(
             hdr_right,
             text="⏰ Schedule",
-            width=95,
+            width=86,
             fg_color=("gray80", "gray25"),
             text_color=("black", "white"),
             command=self._open_schedule
         )
-        btn_sched.pack(side="left", padx=5)
+        btn_sched.pack(side="left", padx=2)
 
         # Shortcuts Cheat-Sheet Button
         btn_shortcuts = ctk.CTkButton(
             hdr_right,
             text="⌨️ Keys",
-            width=75,
+            width=66,
             fg_color=("gray80", "gray25"),
             text_color=("black", "white"),
             command=self._open_shortcuts
         )
-        btn_shortcuts.pack(side="left", padx=5)
+        btn_shortcuts.pack(side="left", padx=2)
 
         # Settings Button
         btn_settings = ctk.CTkButton(
             hdr_right,
             text="⚙️ Settings",
-            width=90,
+            width=82,
             fg_color=("gray80", "gray25"),
             text_color=("black", "white"),
             command=self._open_settings
         )
-        btn_settings.pack(side="left", padx=5)
+        btn_settings.pack(side="left", padx=2)
 
         # 2. Presets Toolbar
         preset_bar = ctk.CTkFrame(self, corner_radius=0, fg_color=("gray92", "gray17"))
         preset_bar.pack(fill="x", padx=0, pady=0)
 
         p_inner = ctk.CTkFrame(preset_bar, fg_color="transparent")
-        p_inner.pack(fill="x", padx=20, pady=8)
+        p_inner.pack(fill="x", padx=16, pady=6)
 
-        ctk.CTkLabel(p_inner, text="Preset Mode:", font=FONT_BODY_BOLD).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(p_inner, text="Preset:", font=FONT_BODY_BOLD).pack(side="left", padx=(0, 6))
 
         self.preset_var = ctk.StringVar(value=self.config.get("active_preset", "Assignment Mode"))
         self.preset_menu = ctk.CTkOptionMenu(
@@ -222,101 +223,101 @@ class StudyLauncherApp(ctk.CTk):
             variable=self.preset_var,
             values=["Assignment Mode", "Light Study", "Chill Mode"],
             command=self._on_preset_selected,
-            width=170
+            width=150
         )
-        self.preset_menu.pack(side="left", padx=(0, 10))
+        self.preset_menu.pack(side="left", padx=(0, 6))
 
         ctk.CTkButton(
-            p_inner, text="+ New", width=68, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            p_inner, text="+ New", width=56, fg_color=("gray80", "gray30"), text_color=("black", "white"),
             command=self._create_preset
-        ).pack(side="left", padx=3)
+        ).pack(side="left", padx=2)
 
         ctk.CTkButton(
-            p_inner, text="💾 Overwrite", width=85, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            p_inner, text="💾 Save", width=62, fg_color=("gray80", "gray30"), text_color=("black", "white"),
             command=self._save_active_preset
-        ).pack(side="left", padx=3)
+        ).pack(side="left", padx=2)
 
         ctk.CTkButton(
-            p_inner, text="✏️ Rename", width=75, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            p_inner, text="✏️", width=30, fg_color=("gray80", "gray30"), text_color=("black", "white"),
             command=self._rename_preset
-        ).pack(side="left", padx=3)
+        ).pack(side="left", padx=2)
 
         ctk.CTkButton(
-            p_inner, text="🗑️ Delete", width=68, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            p_inner, text="🗑️", width=30, fg_color=("gray80", "gray30"), text_color=("black", "white"),
             command=self._delete_preset
-        ).pack(side="left", padx=3)
+        ).pack(side="left", padx=2)
 
         ctk.CTkButton(
-            p_inner, text="📤 Share", width=75, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            p_inner, text="📤 Share", width=64, fg_color=("gray80", "gray30"), text_color=("black", "white"),
             command=self._export_preset_bundle
-        ).pack(side="left", padx=3)
+        ).pack(side="left", padx=2)
 
         ctk.CTkButton(
-            p_inner, text="📥 Import", width=75, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            p_inner, text="📥 Import", width=64, fg_color=("gray80", "gray30"), text_color=("black", "white"),
             command=self._import_preset_bundle
-        ).pack(side="left", padx=3)
+        ).pack(side="left", padx=2)
 
         ctk.CTkButton(
             p_inner,
             text="📌 Desktop",
-            width=88,
+            width=78,
             fg_color=COLOR_PRIMARY,
             hover_color=COLOR_PRIMARY_HOVER,
             command=self._create_preset_desktop_shortcut
-        ).pack(side="right", padx=(3, 0))
+        ).pack(side="right", padx=(2, 0))
 
         ctk.CTkButton(
             p_inner,
-            text="🏁 Start Menu",
-            width=92,
+            text="🏁 Start",
+            width=65,
             fg_color=("gray80", "gray30"),
             text_color=("black", "white"),
             command=self._create_preset_start_menu_shortcut
-        ).pack(side="right", padx=(3, 0))
+        ).pack(side="right", padx=(2, 0))
 
         # Pomodoro Mini-Controller
         pomo_box = ctk.CTkFrame(p_inner, fg_color=("gray85", "gray22"), corner_radius=6)
-        pomo_box.pack(side="right", padx=(0, 10))
+        pomo_box.pack(side="right", padx=(0, 6))
 
         self.lbl_pomo_timer = ctk.CTkLabel(
             pomo_box,
             text="🍅 25:00",
             font=FONT_BODY_BOLD,
-            width=68
+            width=60
         )
-        self.lbl_pomo_timer.pack(side="left", padx=(6, 2), pady=3)
+        self.lbl_pomo_timer.pack(side="left", padx=(5, 1), pady=3)
 
         self.btn_pomo_toggle = ctk.CTkButton(
             pomo_box,
             text="▶",
-            width=26,
+            width=24,
             height=24,
             fg_color=COLOR_SUCCESS,
             hover_color=COLOR_SUCCESS_HOVER,
             command=self._toggle_pomodoro
         )
-        self.btn_pomo_toggle.pack(side="left", padx=2, pady=3)
+        self.btn_pomo_toggle.pack(side="left", padx=1, pady=3)
 
         self.btn_pomo_reset = ctk.CTkButton(
             pomo_box,
             text="↺",
-            width=26,
+            width=24,
             height=24,
             fg_color=("gray75", "gray30"),
             text_color=("black", "white"),
             command=self._reset_pomodoro
         )
-        self.btn_pomo_reset.pack(side="left", padx=(2, 4), pady=3)
+        self.btn_pomo_reset.pack(side="left", padx=1, pady=3)
 
         self.pomo_mode_var = ctk.StringVar(value="25m Focus")
         self.pomo_mode_menu = ctk.CTkOptionMenu(
             pomo_box,
             variable=self.pomo_mode_var,
             values=["25m Focus", "50m Deep Work", "5m Short Break", "10m Long Break"],
-            width=115,
+            width=100,
             command=self._on_pomo_mode_change
         )
-        self.pomo_mode_menu.pack(side="left", padx=(2, 6), pady=3)
+        self.pomo_mode_menu.pack(side="left", padx=(1, 5), pady=3)
 
         # 3. Search and Summary Bar
         search_bar = ctk.CTkFrame(self, fg_color="transparent")
@@ -438,7 +439,7 @@ class StudyLauncherApp(ctk.CTk):
     # -----------------------------------------------------------------------
     def _toggle_theme(self):
         new_theme = "dark" if self.theme_switch.get() else "light"
-        self.theme_switch.configure(text="🌙 Dark" if new_theme == "dark" else "☀️ Light")
+        self.theme_switch.configure(text="🌙" if new_theme == "dark" else "☀️")
         ctk.set_appearance_mode(new_theme)
         self.config["theme"] = new_theme
         save_config(self.config)
