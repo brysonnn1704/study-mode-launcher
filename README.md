@@ -34,7 +34,14 @@ Click the **🔍 Check Setup** button in the header or run `python study_launche
 ### 4. Quick App Suggestions
 Click **💡 Suggest Apps** in the search bar to automatically scan your PC for installed tools (WhatsApp, VS Code, Spotify, Discord, Notion, Obsidian, Terminal) and add them with one click.
 
-### 5. Build Single Executable (.exe)
+### 5. Smart Launch Behaviors & Window Snapping (New in Round 2)
+In the item editor:
+- **Running Process Rule**: Choose **"Always Open"**, **"Skip if already running"**, or **"Bring to Front if running"** to prevent duplicate browser or app instances.
+- **Window Snapping**: Automatically position and resize the opened window to **Snap Left Half**, **Snap Right Half**, **Maximize**, or **Center**.
+- **Tab Group URLs**: Enter multiple URLs separated by commas or lines in a Website item (e.g. `https://chatgpt.com, https://classroom.google.com`) to open all of them as a tab group in that profile!
+- **Dynamic Variables**: Use `{date}` (YYYY-MM-DD), `{time}` (HH-MM), `{day}` (Monday), `{year}`, or `{subject}` in your URLs and commands. When `{subject}` is used, the launcher prompts you for your topic before launch and substitutes it dynamically!
+
+### 6. Build Single Executable (.exe)
 Double-click `build.bat` or run:
 ```bat
 build.bat

@@ -126,7 +126,41 @@ class ItemDialog(ctk.CTkToplevel):
         self.dynamic_frame = ctk.CTkFrame(self.scroll_frame, corner_radius=8)
         self.dynamic_frame.pack(fill="x", pady=12)
 
-        # 4. Delay and Notes
+        # 4. Advanced Launch Controls (Behavior & Window Positioning)
+        row_adv = ctk.CTkFrame(self.scroll_frame, corner_radius=8)
+        row_adv.pack(fill="x", pady=6)
+
+        adv_inner = ctk.CTkFrame(row_adv, fg_color="transparent")
+        adv_inner.pack(fill="x", padx=12, pady=10)
+
+        ctk.CTkLabel(adv_inner, text="Smart Launch & Window Snapping", font=FONT_BODY_BOLD).pack(anchor="w", pady=(0, 6))
+
+        adv_cols = ctk.CTkFrame(adv_inner, fg_color="transparent")
+        adv_cols.pack(fill="x")
+
+        # Launch Behavior
+        col_b = ctk.CTkFrame(adv_cols, fg_color="transparent")
+        col_b.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ctk.CTkLabel(col_b, text="Running Process Rule:", font=FONT_CAPTION).pack(anchor="w")
+        self.menu_behavior = ctk.CTkOptionMenu(
+            col_b,
+            values=["Always Open", "Skip if already running", "Bring to Front if running"],
+            dynamic_resizing=False
+        )
+        self.menu_behavior.pack(fill="x", pady=4)
+
+        # Window Position
+        col_p = ctk.CTkFrame(adv_cols, fg_color="transparent")
+        col_p.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        ctk.CTkLabel(col_p, text="Window Snapping / Size:", font=FONT_CAPTION).pack(anchor="w")
+        self.menu_position = ctk.CTkOptionMenu(
+            col_p,
+            values=["Normal / Default", "Snap Left Half", "Snap Right Half", "Maximize", "Center"],
+            dynamic_resizing=False
+        )
+        self.menu_position.pack(fill="x", pady=4)
+
+        # 5. Delay and Notes
         row_meta = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
         row_meta.pack(fill="x", pady=6)
 
@@ -422,6 +456,24 @@ class ItemDialog(ctk.CTkToplevel):
                 self.entry_fallback.delete(0, "end")
                 self.entry_fallback.insert(0, item.get("fallback_path", ""))
 
+        behavior_map = {
+            "always": "Always Open",
+            "skip_if_running": "Skip if already running",
+            "focus_if_running": "Bring to Front if running"
+        }
+        cur_beh = item.get("launch_behavior", "always")
+        self.menu_behavior.set(behavior_map.get(cur_beh, "Always Open"))
+
+        pos_map = {
+            "default": "Normal / Default",
+            "left_half": "Snap Left Half",
+            "right_half": "Snap Right Half",
+            "maximize": "Maximize",
+            "center": "Center"
+        }
+        cur_pos = item.get("window_position", "default")
+        self.menu_position.set(pos_map.get(cur_pos, "Normal / Default"))
+
         delay_val = item.get("delay")
         if delay_val is not None and str(delay_val).strip() != "":
             self.entry_delay.delete(0, "end")
@@ -458,6 +510,19 @@ class ItemDialog(ctk.CTkToplevel):
         item_id = self.item_data.get("id") if self.item_data else f"item-{uuid.uuid4().hex[:8]}"
         enabled = self.item_data.get("enabled", True) if self.item_data else True
 
+        rev_beh = {
+            "Always Open": "always",
+            "Skip if already running": "skip_if_running",
+            "Bring to Front if running": "focus_if_running"
+        }
+        rev_pos = {
+            "Normal / Default": "default",
+            "Snap Left Half": "left_half",
+            "Snap Right Half": "right_half",
+            "Maximize": "maximize",
+            "Center": "center"
+        }
+
         obj = {
             "id": item_id,
             "name": name,
@@ -465,7 +530,9 @@ class ItemDialog(ctk.CTkToplevel):
             "target": target,
             "icon": self.entry_emoji.get().strip() or "🌐",
             "note": self.entry_notes.get().strip(),
-            "enabled": enabled
+            "enabled": enabled,
+            "launch_behavior": rev_beh.get(self.menu_behavior.get(), "always"),
+            "window_position": rev_pos.get(self.menu_position.get(), "default")
         }
         if delay is not None:
             obj["delay"] = delay

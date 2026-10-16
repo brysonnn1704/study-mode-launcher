@@ -565,6 +565,47 @@ class StudyLauncherApp(ctk.CTk):
             )
             delay_badge.pack(side="left", padx=4)
 
+        # Window Position badge
+        pos = item.get("window_position", "default")
+        if pos and pos != "default":
+            pos_labels = {
+                "left_half": "◧ Left Half",
+                "right_half": "◨ Right Half",
+                "maximize": "🗖 Maximize",
+                "center": "▣ Center"
+            }
+            pos_badge = ctk.CTkLabel(
+                name_row,
+                text=f" {pos_labels.get(pos, pos)} ",
+                font=FONT_CAPTION,
+                fg_color=("gray80", "gray30"),
+                corner_radius=4
+            )
+            pos_badge.pack(side="left", padx=4)
+
+        # Process Behavior badge
+        beh = item.get("launch_behavior", "always")
+        if beh == "skip_if_running":
+            beh_badge = ctk.CTkLabel(
+                name_row,
+                text=" ⚡ Skip if running ",
+                font=FONT_CAPTION,
+                fg_color=("#FEF3C7", "#78350F"),
+                text_color=("#92400E", "#FCD34D"),
+                corner_radius=4
+            )
+            beh_badge.pack(side="left", padx=4)
+        elif beh == "focus_if_running":
+            beh_badge = ctk.CTkLabel(
+                name_row,
+                text=" ⚡ Focus if running ",
+                font=FONT_CAPTION,
+                fg_color=("#E0E7FF", "#3730A3"),
+                text_color=("#3730A3", "#C7D2FE"),
+                corner_radius=4
+            )
+            beh_badge.pack(side="left", padx=4)
+
         target_preview = item.get("target", "")
         if len(target_preview) > 55:
             target_preview = target_preview[:52] + "..."
@@ -674,6 +715,18 @@ class StudyLauncherApp(ctk.CTk):
             )
             return
 
+        # Check if dynamic subject variable is required
+        context = {}
+        needs_subject = any("{subject}" in (it.get("target", "") + it.get("note", "")) for it in enabled_items)
+        if needs_subject:
+            dialog = ctk.CTkInputDialog(
+                text="Enter current study subject / topic (for dynamic {subject}):",
+                title="Study Subject Variable"
+            )
+            subj = dialog.get_input()
+            if subj and subj.strip():
+                context["subject"] = subj.strip()
+
         self.is_launching = True
         self._cancel_launch = False
         self.btn_launch.configure(state="disabled", text="⏳ Launching...")
@@ -695,7 +748,7 @@ class StudyLauncherApp(ctk.CTk):
                     COLOR_PRIMARY
                 ))
 
-                success, msg = LaunchEngine.launch_item(it)
+                success, msg = LaunchEngine.launch_item(it, context=context)
                 if success:
                     success_count += 1
                 else:

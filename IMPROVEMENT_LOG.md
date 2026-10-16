@@ -51,3 +51,42 @@ This document records the automated testing, code analysis, bug fixes, UI/UX pol
 
 ---
 
+## Round 2: Window Snapping, Process Detection, Tab Groups & Dynamic Variables
+
+### What Was Tested
+- **Automated Test Suite (44 Tests via pytest)**:
+  - `tests/test_round2_features.py`:
+    - Dynamic variable substitution (`{date}`, `{time}`, `{day}`, `{year}`, `{subject}`) with context and fallback values.
+    - Tab group URL parsing and multi-argument command generation for Chromium browsers.
+    - Windows display metrics discovery and safe window position modes (`maximize`, `left_half`, `right_half`, `center`).
+    - Config schema persistence for `launch_behavior` and `window_position`.
+  - Full suite re-run (44 passed in 13.88s) verifying zero regressions in config migration, browser detection, presets, diagnostics, or UI.
+
+### Bugs Found & Fixed
+1. **Fixture State Leakage Across Tests**: In test fixtures, a previously run launch test left `btn_launch` in `⏳ Launching...` state, which caused downstream tests asserting initial button state to fail. Fixed by implementing an autouse fixture resetting all runtime state flags (`is_launching = False`, `_cancel_launch = False`, and `btn_launch.configure(state='normal')`).
+2. **Multiple Tk Instances in Single Process**: Repeatedly creating and destroying `ctk.CTk()` root instances caused Tcl library unloading errors in Python 3.14. Resolved by establishing a unified session-scoped `session_app` fixture in `conftest.py`.
+
+### Features Added
+1. **Window Positioning & Snapping (`core/window_manager.py`)**:
+   - Supports snapping opened windows to **Snap Left Half** (50% split), **Snap Right Half** (50% split), **Maximize**, or **Center** using Windows User32 APIs (`SetWindowPos`, `ShowWindow`, `EnumWindows`).
+2. **Running Process Rules (`core/launcher.py`)**:
+   - Configurable per-item behavior: **"Always Open"**, **"Skip if already running"**, or **"Bring to Front if running"** using `psutil` process tree scanning.
+3. **Tab Group URLs**:
+   - Allows users to provide multiple URLs in a single Website item (separated by commas or newlines) to launch an entire tab group in the specified profile in a single click.
+4. **Dynamic Variables Engine**:
+   - Supports `{date}`, `{time}`, `{day}`, `{year}`, `{month}`, and `{subject}` in website URLs, file paths, and custom commands.
+   - Detects `{subject}` and displays an interactive modal prompt for the topic before launching.
+
+### UI & Text Changes
+- Added **Smart Launch & Window Snapping** section in the Item Editor (`ItemDialog`) with dual dropdowns.
+- Added visual badges on item cards for window position (`◧ Left Half`, `◨ Right Half`, `🗖 Maximize`, `▣ Center`) and process rules (`⚡ Skip if running`, `⚡ Focus if running`).
+- Added dynamic `{subject}` prompt dialog prior to launch execution.
+
+### Plan for Round 3
+- Distraction Blocker / Process Closer: Configurable study blocklist (Steam, Discord, Epic Games, Riot, Spotify, etc.) that asks for confirmation, gracefully closes them when entering Study Mode, and logs them for quick restore.
+- Study Focus Scratchpad / Quick Notes & Tasks Widget directly in the launcher UI.
+- Ambient Study Music / Playlist Quick Launcher.
+
+---
+
+
