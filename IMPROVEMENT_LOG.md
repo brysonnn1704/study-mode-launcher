@@ -218,4 +218,41 @@ This document records the automated testing, code analysis, bug fixes, UI/UX pol
 
 ---
 
+## Round 6 - Time-Based Weekly Study Schedules & Auto-Launch Reminders
+
+### What Was Tested
+- Automated tests via `pytest tests/test_round6_features.py`:
+  - Schedule rule validation: empty days rejection, 24-hour time format checking (`00:00` - `23:59`), clean string normalization.
+  - Schedule rule persistence, enabled/disabled state toggles, and deletion.
+  - Background scheduler thread (`StudyScheduler`) clock matching against active weekly rules.
+  - Programmatic UI testing of `ScheduleDialog`.
+- Full regression suite of 65 tests passing across all components.
+
+### Bugs Found & Fixed
+- **Scheduler Thread Stoppage on Window Destroy**: Handled clean `self.scheduler.stop()` invocation during window close and tray quit events so background worker threads do not stay alive in the background after process exit.
+- **Duplicate Minute Trigger Prevention**: Implemented `_last_triggered_minute` tracking in `StudyScheduler` to ensure that clock checks within the same 60-second window do not trigger repeated reminder dialogs or multiple duplicate launches.
+
+### Features Added
+1. **Time-Based Weekly Study Scheduler Engine (`core/scheduler.py`)**:
+   - Allows users to schedule automated presets on specific days of the week (e.g. Weekdays at 18:00, Saturdays at 10:00).
+   - Modes:
+     - **Reminder Mode (Default)**: Pops up a friendly non-intrusive reminder with one-click "Launch Now".
+     - **Auto-Launch Mode**: Automatically switches to the scheduled preset and launches all items immediately without waiting for user action.
+   - Background worker with interruptible sleep intervals for immediate shutdown responsiveness.
+2. **Interactive Study Routines Manager Dialog (`ui/schedule_dialog.py`)**:
+   - Accessible via the **"⏰ Schedule"** button on the main header.
+   - Intuitive form with preset picker, 24-hour time entry, day-of-week checkboxes, and quick select buttons (**"Weekdays"** / **"Every Day"**).
+   - Live list of active study schedules with on/off switch and instant delete.
+
+### UI & Text Changes
+- Added **"⏰ Schedule"** button to the top header bar next to Stats and Keys.
+- Embedded schedule status notifications into the Toast Notification banner system.
+
+### Plan for Round 7
+- Enhanced System Tray Menu: Dynamic submenus for each individual preset in the system tray icon so users can launch any preset directly from the Windows taskbar corner without opening the main window.
+- Windows Start Menu Shortcut Generator (`core/presets.py`).
+- Automatic Failed Launch Recovery & 1-Click Retry Banner.
+
+---
+
 

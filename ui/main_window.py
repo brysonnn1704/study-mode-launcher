@@ -31,9 +31,11 @@ from core.system import HotkeyManager
 from core.distraction_blocker import DistractionBlocker
 from core.pomodoro import PomodoroTimer
 from core.session_tracker import SessionTracker
+from core.scheduler import StudyScheduler
 from ui.dialogs import ItemDialog, SettingsDialog, DiagnosticsDialog, AppSuggestionsDialog, DistractionBlockerDialog
 from ui.notes_widget import StudyNotesDialog
 from ui.stats_dialog import SessionStatsDialog
+from ui.schedule_dialog import ScheduleDialog
 from ui.toast import ToastNotification
 from ui.shortcuts_dialog import ShortcutsDialog
 from ui.theme import (
@@ -85,6 +87,10 @@ class StudyLauncherApp(ctk.CTk):
         self._refresh_items_list()
         self._setup_hotkey()
         self._setup_keyboard_shortcuts()
+
+        # Study Routine Scheduler
+        self.scheduler = StudyScheduler(self.config, on_trigger_callback=self._on_schedule_triggered)
+        self.scheduler.start()
 
         self.protocol("WM_DELETE_WINDOW", self._on_close_window)
 
@@ -165,6 +171,17 @@ class StudyLauncherApp(ctk.CTk):
             command=self._open_stats
         )
         btn_stats.pack(side="left", padx=5)
+
+        # Schedule Button
+        btn_sched = ctk.CTkButton(
+            hdr_right,
+            text="⏰ Schedule",
+            width=95,
+            fg_color=("gray80", "gray25"),
+            text_color=("black", "white"),
+            command=self._open_schedule
+        )
+        btn_sched.pack(side="left", padx=5)
 
         # Shortcuts Cheat-Sheet Button
         btn_shortcuts = ctk.CTkButton(
@@ -413,6 +430,27 @@ class StudyLauncherApp(ctk.CTk):
 
     def _open_stats(self):
         SessionStatsDialog(self, self.config)
+
+    def _open_schedule(self):
+        ScheduleDialog(self, self.config)
+
+    def _on_schedule_triggered(self, rule: Dict[str, Any]):
+        preset = rule.get("preset_name", "Assignment Mode")
+        auto = rule.get("auto_launch", False)
+        if auto:
+            self._safe_after(0, lambda: self._execute_scheduled_launch(preset))
+        else:
+            self._safe_after(0, lambda: self._prompt_scheduled_launch(preset, rule.get("time", "")))
+
+    def _execute_scheduled_launch(self, preset: str):
+        self.toast.show(f"⏰ Launching scheduled routine '{preset}'...", "info")
+        self._on_preset_selected(preset)
+        self.after(500, self.launch_study_mode)
+
+    def _prompt_scheduled_launch(self, preset: str, time_str: str):
+        msg = f"It's {time_str}! Would you like to launch your '{preset}' study workspace now?"
+        if messagebox.askyesno("Study Routine Reminder", msg, parent=self):
+            self._execute_scheduled_launch(preset)
 
     # -----------------------------------------------------------------------
     # Pomodoro Focus Timer Logic
@@ -1174,6 +1212,7 @@ class StudyLauncherApp(ctk.CTk):
         if SessionTracker.is_session_active():
             SessionTracker.end_session(self.config)
         self.pomodoro.reset()
+        self.scheduler.stop()
         if self.tray_icon:
             self.tray_icon.stop()
             self.tray_icon = None
@@ -1187,6 +1226,7 @@ class StudyLauncherApp(ctk.CTk):
             if SessionTracker.is_session_active():
                 SessionTracker.end_session(self.config)
             self.pomodoro.reset()
+            self.scheduler.stop()
             if self.tray_icon:
                 self.tray_icon.stop()
                 self.tray_icon = None

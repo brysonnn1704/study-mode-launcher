@@ -169,6 +169,18 @@ Easily exchange study configurations with friends or back up individual workflow
 
 ---
 
+## ⏰ Time-Based Study Routines & Weekly Schedules
+
+Automate your study habits by setting schedules:
+1. Click the **⏰ Schedule** button in the header bar.
+2. Select your preset mode, enter the target time in 24-hour format (e.g., `18:00`), and choose which days of the week it should trigger.
+3. Choose your trigger behavior:
+   - **Reminder (Default)**: Pops up a friendly notification asking if you'd like to launch your study session.
+   - **Auto-Launch**: Automatically opens all configured items without needing user interaction.
+4. Easily toggle schedules on/off with switches or delete outdated routines.
+
+---
+
 ## ⚙️ How to Enable Windows Startup Launch
 
 1. Click the **⚙️ Settings** button in the top right.
