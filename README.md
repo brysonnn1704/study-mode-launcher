@@ -23,9 +23,18 @@ python study_launcher.py --launch
 # Launch a specific preset mode directly
 python study_launcher.py --preset "Assignment Mode"
 python study_launcher.py --preset "Light Study"
+
+# Run automated self-diagnostics
+python study_launcher.py --diagnostics
 ```
 
-### 3. Build Single Executable (.exe)
+### 3. Self-Diagnostics ("Check My Setup")
+Click the **🔍 Check Setup** button in the header or run `python study_launcher.py --diagnostics` to verify all browsers, Chromium profiles, app paths, and scripts before launching.
+
+### 4. Quick App Suggestions
+Click **💡 Suggest Apps** in the search bar to automatically scan your PC for installed tools (WhatsApp, VS Code, Spotify, Discord, Notion, Obsidian, Terminal) and add them with one click.
+
+### 5. Build Single Executable (.exe)
 Double-click `build.bat` or run:
 ```bat
 build.bat

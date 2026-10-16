@@ -9,4 +9,6 @@ dist/
 htmlcov/
 gesture_mouse/
 hand_landmarker.task
+config.json.bak
+*.corrupted.*
 screenshots/
