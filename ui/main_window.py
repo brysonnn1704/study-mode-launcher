@@ -26,7 +26,7 @@ except ImportError:
 
 from core.config import load_config, save_config, get_bundle_dir
 from core.launcher import LaunchEngine
-from core.presets import PresetManager, create_desktop_shortcut
+from core.presets import PresetManager, create_desktop_shortcut, create_start_menu_shortcut
 from core.system import HotkeyManager
 from core.distraction_blocker import DistractionBlocker
 from core.pomodoro import PomodoroTimer
@@ -57,6 +57,8 @@ class StudyLauncherApp(ctk.CTk):
         self._cancel_launch = False
         self.tray_icon = None
         self.closed_distractions: List[Dict[str, Any]] = []
+        self.last_launched_items: List[Dict[str, Any]] = []
+        self.last_failed_items: List[Dict[str, Any]] = []
 
         # Pomodoro Focus Timer
         self.pomodoro = PomodoroTimer()
@@ -256,11 +258,21 @@ class StudyLauncherApp(ctk.CTk):
 
         ctk.CTkButton(
             p_inner,
-            text="📌 Desktop Shortcut",
+            text="📌 Desktop",
+            width=88,
             fg_color=COLOR_PRIMARY,
             hover_color=COLOR_PRIMARY_HOVER,
             command=self._create_preset_desktop_shortcut
-        ).pack(side="right")
+        ).pack(side="right", padx=(3, 0))
+
+        ctk.CTkButton(
+            p_inner,
+            text="🏁 Start Menu",
+            width=92,
+            fg_color=("gray80", "gray30"),
+            text_color=("black", "white"),
+            command=self._create_preset_start_menu_shortcut
+        ).pack(side="right", padx=(3, 0))
 
         # Pomodoro Mini-Controller
         pomo_box = ctk.CTkFrame(p_inner, fg_color=("gray85", "gray22"), corner_radius=6)
@@ -399,6 +411,18 @@ class StudyLauncherApp(ctk.CTk):
             command=self._restore_closed_apps
         )
         # Hidden initially; packed when distractions are closed
+
+        self.btn_retry_failed = ctk.CTkButton(
+            launch_container,
+            text="🔁 Retry Failed",
+            width=120,
+            height=34,
+            fg_color=COLOR_WARNING,
+            hover_color="#B45309",
+            text_color=("black", "white"),
+            command=self._retry_failed_items
+        )
+        # Hidden initially; packed when items fail
 
         self.lbl_status = ctk.CTkLabel(
             launch_container,
@@ -622,6 +646,14 @@ class StudyLauncherApp(ctk.CTk):
         ok, msg = create_desktop_shortcut(cur)
         if ok:
             self.toast.show("Desktop shortcut created!", "success")
+        else:
+            self.toast.show(msg, "danger")
+
+    def _create_preset_start_menu_shortcut(self):
+        cur = self.preset_var.get()
+        ok, msg = create_start_menu_shortcut(cur)
+        if ok:
+            self.toast.show("Start Menu shortcut created!", "success")
         else:
             self.toast.show(msg, "danger")
 
@@ -1073,6 +1105,7 @@ class StudyLauncherApp(ctk.CTk):
     def _start_launch_sequence(self, enabled_items: List[Dict[str, Any]], context: Dict[str, str]):
         self.is_launching = True
         self._cancel_launch = False
+        self.last_launched_items = list(enabled_items)
         self.btn_launch.configure(state="disabled", text="⏳ Launching...")
         default_delay = float(self.config.get("default_delay", 1.5))
 
@@ -1135,6 +1168,13 @@ class StudyLauncherApp(ctk.CTk):
         except Exception:
             pass
 
+    def _retry_failed_items(self):
+        if not self.last_failed_items:
+            return
+        items = list(self.last_failed_items)
+        self.btn_retry_failed.pack_forget()
+        self._start_launch_sequence(items, {})
+
     def _on_launch_finished(self, success_count: int, failures: List[Tuple[str, str]], total: int):
         self.is_launching = False
         if not self.winfo_exists():
@@ -1143,11 +1183,18 @@ class StudyLauncherApp(ctk.CTk):
         self.btn_launch.configure(state="normal", text="🚀 Launch Study Mode")
 
         if not failures:
+            self.last_failed_items = []
+            self.btn_retry_failed.pack_forget()
             self.lbl_status.configure(
                 text=f"✅ All {total} items launched successfully!",
                 text_color=COLOR_SUCCESS
             )
+            self.toast.show(f"All {total} study workspace items launched!", "success")
         else:
+            failed_names = {name for name, _ in failures}
+            self.last_failed_items = [it for it in self.last_launched_items if it.get("name") in failed_names]
+            self.btn_retry_failed.configure(text=f"🔁 Retry ({len(failures)} failed)")
+            self.btn_retry_failed.pack(side="right", padx=(0, 10))
             self.lbl_status.configure(
                 text=f"⚠️ {success_count}/{total} launched ({len(failures)} failed)",
                 text_color=COLOR_DANGER
@@ -1187,14 +1234,29 @@ class StudyLauncherApp(ctk.CTk):
             else:
                 icon_img = Image.new("RGBA", (64, 64), (59, 130, 246, 255))
 
+            preset_items = []
+            for p_name in PresetManager.get_preset_names(self.config):
+                preset_items.append(
+                    pystray.MenuItem(
+                        f"▶ {p_name}",
+                        lambda icon, item, name=p_name: self._launch_preset_from_tray(name)
+                    )
+                )
+
             menu = pystray.Menu(
                 pystray.MenuItem("Open Study Mode Launcher", self._restore_from_tray, default=True),
-                pystray.MenuItem("Launch Study Mode", lambda icon, item: self.after(0, self.launch_study_mode)),
+                pystray.MenuItem("🚀 Launch Active Preset", lambda icon, item: self.after(0, self.launch_study_mode)),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem("🎯 Presets", pystray.Menu(*preset_items)),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Exit", self._exit_app)
             )
             self.tray_icon = pystray.Icon("StudyLauncher", icon_img, "Study Mode Launcher", menu)
             threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+    def _launch_preset_from_tray(self, preset_name: str):
+        self.after(0, lambda: self._on_preset_selected(preset_name))
+        self.after(100, self.launch_study_mode)
 
     def _restore_from_tray(self, icon=None, item=None):
         if self.tray_icon:

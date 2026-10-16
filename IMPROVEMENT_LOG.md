@@ -255,4 +255,40 @@ This document records the automated testing, code analysis, bug fixes, UI/UX pol
 
 ---
 
+## Round 7 - Dynamic Tray Submenus, Start Menu Integration & 1-Click Retry
+
+### What Was Tested
+- Automated tests via `pytest tests/test_round7_features.py`:
+  - `create_start_menu_shortcut`: Program directory path creation in `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Study Mode Launcher`, shortcut link configuration, and CLI arguments passing.
+  - `failed_items_retry_logic`: Failure isolation filter, dynamic retry button text (`🔁 Retry (N failed)`), and targeted launch dispatch without touching successful items.
+  - `tray_menu_preset_dispatch`: Verified that clicking any preset in the system tray menu switches active preset state and initiates immediate launch.
+- Full regression suite of 68 tests passing across all components.
+
+### Bugs Found & Fixed
+- **Unselective Retries in Previous Iterations**: Previously, if 1 item failed in a list of 10 items, retrying would re-launch all 10 items, causing duplicate browser windows and duplicate processes. Fixed by introducing `self.last_failed_items` and an isolated `_retry_failed_items()` executor that retries only the failed items.
+- **Start Menu Directory Creation**: Ensured `create_start_menu_shortcut()` creates the parent folder hierarchy automatically if it doesn't already exist.
+
+### Features Added
+1. **Dynamic System Tray Presets Menu (`pystray` Integration)**:
+   - System tray menu now dynamically queries configured presets and renders an interactive **"🎯 Presets"** submenu.
+   - Clicking any preset in the tray menu instantly activates that preset and launches all its enabled items in the background without needing to restore or unhide the launcher window.
+2. **Windows Start Menu Shortcut Generator (`core/presets.py`)**:
+   - Added **"🏁 Start Menu"** button directly to the presets toolbar.
+   - Creates a native Windows Start Menu shortcut under `Programs\Study Mode Launcher\`, making study presets searchable directly via the Windows Start key!
+3. **1-Click Launch Failure Recovery (`ui/main_window.py`)**:
+   - Isolates failed items upon launch completion and surfaces an actionable **"🔁 Retry (N failed)"** button in the bottom action bar.
+   - Retries only the items that encountered errors without re-opening already running applications or browser windows.
+
+### UI & Text Changes
+- Added **"🏁 Start Menu"** button to the preset toolbar.
+- Added dynamic **"🔁 Retry Failed"** action button to the bottom action bar.
+- Enhanced System Tray context menu with dedicated presets hierarchy.
+
+### Plan for Round 8
+- Final Hardening & Stress Testing: 100+ items stress test, CLI error path validation, edge cases.
+- Production PyInstaller Executable Build via `build.bat` (`dist/StudyModeLauncher.exe`).
+- Production Verification & Final Comprehensive Report.
+
+---
+
 

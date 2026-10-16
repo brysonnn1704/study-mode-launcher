@@ -217,3 +217,63 @@ def create_desktop_shortcut(preset_name: str) -> Tuple[bool, str]:
     except Exception as e:
         LOGGER.error(f"Failed to create desktop shortcut for '{preset_name}': {e}")
         return False, f"Failed to create desktop shortcut: {e}"
+
+
+def create_start_menu_shortcut(preset_name: str) -> Tuple[bool, str]:
+    """
+    Creates a shortcut in the Windows Start Menu programs directory.
+    """
+    appdata = os.environ.get("APPDATA", "")
+    if not appdata:
+        return False, "Windows APPDATA directory was not found."
+
+    start_menu_dir = os.path.join(appdata, "Microsoft", "Windows", "Start Menu", "Programs", "Study Mode Launcher")
+    os.makedirs(start_menu_dir, exist_ok=True)
+
+    safe_name = "".join(c for c in preset_name if c.isalnum() or c in (" ", "-", "_")).strip()
+    shortcut_path = os.path.join(start_menu_dir, f"Study Mode - {safe_name}.lnk")
+    icon_path = os.path.join(get_bundle_dir(), "app_icon.ico")
+
+    try:
+        if HAS_WIN32COM:
+            shell = win32com.client.Dispatch("WScript.Shell")
+            shortcut = shell.CreateShortcut(shortcut_path)
+            if getattr(sys, 'frozen', False):
+                shortcut.TargetPath = sys.executable
+                shortcut.Arguments = f'--preset "{preset_name}"'
+                shortcut.WorkingDirectory = os.path.dirname(sys.executable)
+            else:
+                python_exe = sys.executable
+                pythonw_exe = os.path.join(os.path.dirname(python_exe), "pythonw.exe")
+                target_exe = pythonw_exe if os.path.exists(pythonw_exe) else python_exe
+                main_script = os.path.join(get_base_dir(), "study_launcher.py")
+                shortcut.TargetPath = target_exe
+                shortcut.Arguments = f'"{main_script}" --preset "{preset_name}"'
+                shortcut.WorkingDirectory = get_base_dir()
+
+            shortcut.Description = f"Launch Study Mode preset: {preset_name}"
+            if os.path.exists(icon_path):
+                shortcut.IconLocation = f"{icon_path}, 0"
+            shortcut.Save()
+            return True, f"Created Start Menu shortcut: {os.path.basename(shortcut_path)}"
+        else:
+            ps_cmd = (
+                f'$ws = New-Object -ComObject WScript.Shell; '
+                f'$sc = $ws.CreateShortcut("{shortcut_path}"); '
+            )
+            if getattr(sys, 'frozen', False):
+                ps_cmd += f'$sc.TargetPath = "{sys.executable}"; $sc.Arguments = \'--preset "{preset_name}"\'; '
+                ps_cmd += f'$sc.WorkingDirectory = "{os.path.dirname(sys.executable)}"; '
+            else:
+                main_script = os.path.join(get_base_dir(), "study_launcher.py")
+                ps_cmd += f'$sc.TargetPath = "{sys.executable}"; $sc.Arguments = \'"{main_script}" --preset "{preset_name}"\'; '
+                ps_cmd += f'$sc.WorkingDirectory = "{get_base_dir()}"; '
+            if os.path.exists(icon_path):
+                ps_cmd += f'$sc.IconLocation = "{icon_path},0"; '
+            ps_cmd += '$sc.Save()'
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            return True, f"Created Start Menu shortcut: {os.path.basename(shortcut_path)}"
+    except Exception as e:
+        LOGGER.error(f"Failed to create Start Menu shortcut for '{preset_name}': {e}")
+        return False, f"Failed to create Start Menu shortcut: {e}"
+
