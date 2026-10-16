@@ -102,7 +102,10 @@ Presets let you switch between study workspaces based on your workflow:
 2. **Create New Preset**: Click the **+ New** button in the top toolbar, type a name (e.g. *Exam Prep* or *Coding Session*), and click OK.
 3. **Switch Presets**: Use the preset dropdown at any time. Selecting a preset instantly sets your items to match that preset.
 4. **Save Changes**: If you toggle items on or off, click **💾 Overwrite** to save your changes to the active preset.
-5. **Desktop Shortcut**: Click **📌 Desktop Shortcut** to place a direct shortcut on your Windows Desktop (e.g., `Study Mode - Assignment Mode.lnk`). Double-clicking that desktop shortcut will launch that preset immediately!
+5. **Desktop & Start Menu Shortcuts**:
+   - Click **📌 Desktop** to place a direct shortcut on your Windows Desktop.
+   - Click **🏁 Start Menu** to add a shortcut in your Windows Start Menu under `Programs\Study Mode Launcher\`. You can then launch your study session simply by searching for it with the Windows key!
+6. **1-Click Failure Recovery**: If any item fails during a launch (e.g. temporary network drop or missing file), a **🔁 Retry Failed (N)** button appears in the bottom status bar. Clicking it retries ONLY the failed items without duplicating already open apps or tabs!
 
 ---
 
