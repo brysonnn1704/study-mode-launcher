@@ -172,4 +172,50 @@ This document records the automated testing, code analysis, bug fixes, UI/UX pol
 
 ---
 
+## Round 5 - Keyboard Shortcuts System, Toast Notifications & Preset Bundle Sharing
+
+### What Was Tested
+- Automated tests via `pytest tests/test_round5_features.py`:
+  - `ToastNotification` animation lifecycle, level styles (`success`, `warning`, `info`, `danger`), text matching, and safe auto-dismissal.
+  - Preset bundle export to standalone `.studypreset.json` files.
+  - Preset bundle import with duplicate name collision handling (`Preset (1)`) and automatic item ID reassignment to avoid workspace contamination.
+  - Verification that all power-user keyboard shortcut bindings (`Ctrl+Enter`, `Ctrl+N`, `Ctrl+F`, `Escape`, `Ctrl+S`, `Ctrl+D`, `Ctrl+M`, `Ctrl+T`, `Ctrl+H`, `F1`) are cleanly registered on the root window.
+  - Programmatic UI testing of `ShortcutsDialog` cheat-sheet.
+- Full regression suite of 61 tests passing across all components.
+
+### Bugs Found & Fixed
+- **Disruptive Modal Dialog Interruption**: Replaced multiple blocking modal popups (`messagebox.showinfo` for preset saving, creation, renaming, and shortcut generation) with the smooth, auto-dismissing `ToastNotification` banner floating at the top of the window.
+- **Search Unfocus and Escape Trapping**: Implemented clean `<Escape>` keybinding that resets search text, clears filters, and restores focus back to the workspace list.
+
+### Features Added
+1. **Power-User Keyboard Shortcuts Engine (`ui/shortcuts_dialog.py` & `StudyLauncherApp`)**:
+   - `Ctrl + Enter` / `Ctrl + Keypad Enter`: Launches active Study Mode immediately.
+   - `Ctrl + N`: Opens "+ Add New Item" dialog.
+   - `Ctrl + F`: Instantly focuses and selects search box for fast filtering.
+   - `Escape`: Clears search filter and restores view.
+   - `Ctrl + S`: Saves & overwrites active preset with current toggles.
+   - `Ctrl + Shift + S`: Opens Personalization & Settings.
+   - `Ctrl + D`: Opens Self-Diagnostics.
+   - `Ctrl + M`: Opens Notes & Ambient Audio.
+   - `Ctrl + T`: Starts / pauses Pomodoro timer.
+   - `Ctrl + H`: Opens Study Session Stats & Analytics.
+   - `F1` or `Ctrl + /`: Displays the Keyboard Shortcuts Cheat-Sheet.
+2. **Non-Blocking Toast Notification Banner (`ui/toast.py`)**:
+   - Sleek floating banner providing non-intrusive feedback for saves, exports, desktop shortcut creations, and errors.
+   - Distinct color themes for Success (green), Info (blue), Warning (amber), and Danger (crimson) with close button and auto-fade.
+3. **Preset Bundle Export & Import (`core/presets.py`)**:
+   - `📤 Share`: 1-click export of any preset and its associated items into a standalone `.studypreset.json` file.
+   - `📥 Import`: 1-click import of preset bundles created on other machines or shared by classmates, featuring automatic name conflict resolution and ID remapping.
+
+### UI & Text Changes
+- Added **"⌨️ Keys"** button to the top header for fast access to the keyboard shortcuts cheat-sheet.
+- Added **"📤 Share"** and **"📥 Import"** buttons to the preset toolbar.
+- Migrated preset feedback to non-blocking Toast banners.
+
+### Plan for Round 6
+- Time-Based Study Schedules & Reminders (`core/scheduler.py` & `ui/schedule_dialog.py`): Auto-suggest or launch presets by time of day or day of week (e.g. Weekdays 6:00 PM).
+- Per-Preset Customization (per-preset theme, per-preset launch delay override, per-preset close launcher override).
+
+---
+
 

@@ -145,6 +145,30 @@ Click the **📊 Stats** button in the header to view your study analytics:
 
 ---
 
+## ⌨️ Power-User Keyboard Shortcuts
+
+Click **⌨️ Keys** or press `F1` / `Ctrl + /` at any time to open the in-app cheat sheet:
+- `Ctrl + Enter`: 🚀 Launch active Study Mode preset immediately
+- `Ctrl + N`: ➕ Add a new item to your workspace
+- `Ctrl + F`: 🔍 Jump straight to the search/filter box
+- `Escape`: ✕ Clear filter & return to items view
+- `Ctrl + S`: 💾 Save / overwrite active preset
+- `Ctrl + Shift + S`: ⚙️ Open Settings dialog
+- `Ctrl + D`: 🔍 Open Self-Diagnostics
+- `Ctrl + M`: 📝 Open Study Scratchpad & Audio
+- `Ctrl + T`: 🍅 Start or pause Pomodoro timer
+- `Ctrl + H`: 📊 Open Study Session Stats
+
+---
+
+## 📤 Preset Sharing & Standalone Bundles
+
+Easily exchange study configurations with friends or back up individual workflows:
+- Click **📤 Share** on the presets toolbar to export the active preset and its items into a `.studypreset.json` bundle.
+- Click **📥 Import** to load any `.studypreset.json` bundle. If the preset name already exists, the launcher automatically creates a numbered copy (e.g., `Exam Prep (1)`) and remaps IDs so your existing items are never damaged!
+
+---
+
 ## ⚙️ How to Enable Windows Startup Launch
 
 1. Click the **⚙️ Settings** button in the top right.

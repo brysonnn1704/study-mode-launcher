@@ -15,7 +15,7 @@ import threading
 from typing import Dict, Any, List, Optional, Tuple
 
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 from PIL import Image
 
 try:
@@ -34,6 +34,8 @@ from core.session_tracker import SessionTracker
 from ui.dialogs import ItemDialog, SettingsDialog, DiagnosticsDialog, AppSuggestionsDialog, DistractionBlockerDialog
 from ui.notes_widget import StudyNotesDialog
 from ui.stats_dialog import SessionStatsDialog
+from ui.toast import ToastNotification
+from ui.shortcuts_dialog import ShortcutsDialog
 from ui.theme import (
     FONT_TITLE, FONT_HEADING, FONT_SUBHEADING, FONT_BODY, FONT_BODY_BOLD, FONT_CAPTION,
     COLOR_PRIMARY, COLOR_PRIMARY_HOVER, COLOR_SUCCESS, COLOR_SUCCESS_HOVER,
@@ -78,9 +80,11 @@ class StudyLauncherApp(ctk.CTk):
                 pass
 
         self._build_main_ui()
+        self.toast = ToastNotification(self)
         self._refresh_preset_dropdown()
         self._refresh_items_list()
         self._setup_hotkey()
+        self._setup_keyboard_shortcuts()
 
         self.protocol("WM_DELETE_WINDOW", self._on_close_window)
 
@@ -162,6 +166,17 @@ class StudyLauncherApp(ctk.CTk):
         )
         btn_stats.pack(side="left", padx=5)
 
+        # Shortcuts Cheat-Sheet Button
+        btn_shortcuts = ctk.CTkButton(
+            hdr_right,
+            text="⌨️ Keys",
+            width=75,
+            fg_color=("gray80", "gray25"),
+            text_color=("black", "white"),
+            command=self._open_shortcuts
+        )
+        btn_shortcuts.pack(side="left", padx=5)
+
         # Settings Button
         btn_settings = ctk.CTkButton(
             hdr_right,
@@ -210,6 +225,16 @@ class StudyLauncherApp(ctk.CTk):
         ctk.CTkButton(
             p_inner, text="🗑️ Delete", width=68, fg_color=("gray80", "gray30"), text_color=("black", "white"),
             command=self._delete_preset
+        ).pack(side="left", padx=3)
+
+        ctk.CTkButton(
+            p_inner, text="📤 Share", width=75, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            command=self._export_preset_bundle
+        ).pack(side="left", padx=3)
+
+        ctk.CTkButton(
+            p_inner, text="📥 Import", width=75, fg_color=("gray80", "gray30"), text_color=("black", "white"),
+            command=self._import_preset_bundle
         ).pack(side="left", padx=3)
 
         ctk.CTkButton(
@@ -517,13 +542,14 @@ class StudyLauncherApp(ctk.CTk):
                 save_config(self.config)
                 self._refresh_preset_dropdown()
                 self._refresh_items_list()
+                self.toast.show(f"Created preset '{name.strip()}'!", "success")
             else:
-                messagebox.showwarning("Preset Error", msg, parent=self)
+                self.toast.show(msg, "warning")
 
     def _save_active_preset(self):
         ok, msg = PresetManager.overwrite_active_preset(self.config)
         save_config(self.config)
-        messagebox.showinfo("Preset Saved", msg, parent=self)
+        self.toast.show(msg, "success")
 
     def _rename_preset(self):
         cur = self.preset_var.get()
@@ -537,8 +563,9 @@ class StudyLauncherApp(ctk.CTk):
             if ok:
                 save_config(self.config)
                 self._refresh_preset_dropdown()
+                self.toast.show(f"Renamed to '{new_name.strip()}'!", "success")
             else:
-                messagebox.showwarning("Rename Error", msg, parent=self)
+                self.toast.show(msg, "warning")
 
     def _delete_preset(self):
         cur = self.preset_var.get()
@@ -548,16 +575,108 @@ class StudyLauncherApp(ctk.CTk):
                 save_config(self.config)
                 self._refresh_preset_dropdown()
                 self._refresh_items_list()
+                self.toast.show(f"Deleted preset '{cur}'", "info")
             else:
-                messagebox.showwarning("Delete Error", msg, parent=self)
+                self.toast.show(msg, "warning")
 
     def _create_preset_desktop_shortcut(self):
         cur = self.preset_var.get()
         ok, msg = create_desktop_shortcut(cur)
         if ok:
-            messagebox.showinfo("Desktop Shortcut Created", msg, parent=self)
+            self.toast.show("Desktop shortcut created!", "success")
         else:
-            messagebox.showerror("Error", msg, parent=self)
+            self.toast.show(msg, "danger")
+
+    def _export_preset_bundle(self):
+        cur = self.preset_var.get()
+        f = filedialog.asksaveasfilename(
+            parent=self,
+            title=f"Export Preset '{cur}'",
+            initialfile=f"{cur}.studypreset.json",
+            defaultextension=".studypreset.json",
+            filetypes=[("Study Preset Bundle", "*.studypreset.json"), ("JSON Files", "*.json")]
+        )
+        if f:
+            ok, msg = PresetManager.export_preset_bundle(self.config, cur, f)
+            if ok:
+                self.toast.show(f"Exported preset '{cur}'!", "success")
+            else:
+                self.toast.show(msg, "danger")
+
+    def _import_preset_bundle(self):
+        f = filedialog.askopenfilename(
+            parent=self,
+            title="Import Study Preset Bundle",
+            filetypes=[("Study Preset Bundle", "*.studypreset.json"), ("JSON Files", "*.json")]
+        )
+        if f:
+            ok, msg = PresetManager.import_preset_bundle(self.config, f)
+            if ok:
+                save_config(self.config)
+                self._refresh_preset_dropdown()
+                self._refresh_items_list()
+                self.toast.show(msg, "success")
+            else:
+                self.toast.show(msg, "danger")
+
+    # -----------------------------------------------------------------------
+    # Keyboard Shortcuts System
+    # -----------------------------------------------------------------------
+    def _setup_keyboard_shortcuts(self):
+        # Ctrl+Enter to launch
+        self.bind("<Control-Return>", lambda e: self.launch_study_mode())
+        self.bind("<Control-KP_Enter>", lambda e: self.launch_study_mode())
+
+        # Ctrl+N for new item
+        self.bind("<Control-n>", lambda e: self._open_add_dialog())
+        self.bind("<Control-N>", lambda e: self._open_add_dialog())
+
+        # Ctrl+F to focus search
+        self.bind("<Control-f>", lambda e: self._focus_search())
+        self.bind("<Control-F>", lambda e: self._focus_search())
+
+        # Escape to clear search and unfocus
+        self.bind("<Escape>", lambda e: self._clear_search())
+
+        # Ctrl+S to save active preset
+        self.bind("<Control-s>", lambda e: self._save_active_preset())
+        self.bind("<Control-S>", lambda e: self._save_active_preset())
+
+        # Ctrl+Shift+S for settings
+        self.bind("<Control-Shift-S>", lambda e: self._open_settings())
+        self.bind("<Control-Shift-s>", lambda e: self._open_settings())
+
+        # Ctrl+D for diagnostics
+        self.bind("<Control-d>", lambda e: self._open_diagnostics())
+        self.bind("<Control-D>", lambda e: self._open_diagnostics())
+
+        # Ctrl+M for notes & audio
+        self.bind("<Control-m>", lambda e: self._open_notes())
+        self.bind("<Control-M>", lambda e: self._open_notes())
+
+        # Ctrl+T for toggle pomodoro
+        self.bind("<Control-t>", lambda e: self._toggle_pomodoro())
+        self.bind("<Control-T>", lambda e: self._toggle_pomodoro())
+
+        # Ctrl+H for history & stats
+        self.bind("<Control-h>", lambda e: self._open_stats())
+        self.bind("<Control-H>", lambda e: self._open_stats())
+
+        # F1 or Ctrl+/ for shortcuts cheat sheet
+        self.bind("<F1>", lambda e: self._open_shortcuts())
+        self.bind("<Control-slash>", lambda e: self._open_shortcuts())
+
+    def _focus_search(self):
+        self.search_entry.focus_set()
+        self.search_entry.select_range(0, 'end')
+
+    def _clear_search(self):
+        self.search_entry.delete(0, 'end')
+        self._refresh_items_list()
+        self.focus_set()
+
+    def _open_shortcuts(self):
+        ShortcutsDialog(self)
 
     # -----------------------------------------------------------------------
     # Item Management & Reordering

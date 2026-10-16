@@ -96,6 +96,72 @@ class PresetManager:
         cls.apply_preset(config, new_active)
         return True, f"Deleted preset '{name}'."
 
+    @classmethod
+    def export_preset_bundle(cls, config: Dict[str, Any], preset_name: str, filepath: str) -> Tuple[bool, str]:
+        """Exports a preset and its member items into a shareable JSON bundle."""
+        presets = config.get("presets", {})
+        if preset_name not in presets:
+            return False, f"Preset '{preset_name}' does not exist."
+
+        member_ids = set(presets[preset_name])
+        member_items = [it for it in config.get("items", []) if it.get("id") in member_ids]
+
+        bundle = {
+            "bundle_type": "study_mode_preset",
+            "version": 1,
+            "preset_name": preset_name,
+            "items": member_items
+        }
+
+        try:
+            import json
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(bundle, f, indent=2, ensure_ascii=False)
+            return True, f"Successfully exported preset bundle '{preset_name}'."
+        except Exception as e:
+            return False, f"Failed to export preset bundle: {e}"
+
+    @classmethod
+    def import_preset_bundle(cls, config: Dict[str, Any], filepath: str) -> Tuple[bool, str]:
+        """Imports a preset bundle from JSON and adds items with conflict resolution."""
+        import json
+        import uuid
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                bundle = json.load(f)
+
+            if not isinstance(bundle, dict) or "preset_name" not in bundle or "items" not in bundle:
+                return False, "Invalid preset bundle format."
+
+            p_name = bundle["preset_name"].strip()
+            new_items = bundle["items"]
+
+            # Avoid preset name collision
+            presets = config.setdefault("presets", {})
+            target_name = p_name
+            suffix = 1
+            while target_name in presets:
+                target_name = f"{p_name} ({suffix})"
+                suffix += 1
+
+            existing_items = config.setdefault("items", [])
+            existing_ids = {it["id"] for it in existing_items}
+            imported_ids = []
+
+            for it in new_items:
+                item_copy = json.loads(json.dumps(it))
+                if item_copy["id"] in existing_ids:
+                    item_copy["id"] = f"item-{uuid.uuid4().hex[:8]}"
+                existing_items.append(item_copy)
+                imported_ids.append(item_copy["id"])
+
+            presets[target_name] = imported_ids
+            config["active_preset"] = target_name
+            cls.apply_preset(config, target_name)
+            return True, f"Successfully imported preset '{target_name}' with {len(imported_ids)} item(s)."
+        except Exception as e:
+            return False, f"Failed to import preset bundle: {e}"
+
 
 def create_desktop_shortcut(preset_name: str) -> Tuple[bool, str]:
     """
