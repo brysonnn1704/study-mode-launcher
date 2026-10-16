@@ -28,7 +28,9 @@ from core.config import load_config, save_config, get_bundle_dir
 from core.launcher import LaunchEngine
 from core.presets import PresetManager, create_desktop_shortcut
 from core.system import HotkeyManager
-from ui.dialogs import ItemDialog, SettingsDialog, DiagnosticsDialog, AppSuggestionsDialog
+from core.distraction_blocker import DistractionBlocker
+from ui.dialogs import ItemDialog, SettingsDialog, DiagnosticsDialog, AppSuggestionsDialog, DistractionBlockerDialog
+from ui.notes_widget import StudyNotesDialog
 from ui.theme import (
     FONT_TITLE, FONT_HEADING, FONT_SUBHEADING, FONT_BODY, FONT_BODY_BOLD, FONT_CAPTION,
     COLOR_PRIMARY, COLOR_PRIMARY_HOVER, COLOR_SUCCESS, COLOR_SUCCESS_HOVER,
@@ -47,6 +49,7 @@ class StudyLauncherApp(ctk.CTk):
         self.is_launching = False
         self._cancel_launch = False
         self.tray_icon = None
+        self.closed_distractions: List[Dict[str, Any]] = []
 
         # CustomTkinter initial appearance
         theme = self.config.get("theme", "dark")
@@ -117,6 +120,17 @@ class StudyLauncherApp(ctk.CTk):
         else:
             self.theme_switch.deselect()
         self.theme_switch.pack(side="left", padx=10)
+
+        # Notes & Audio Button
+        btn_notes = ctk.CTkButton(
+            hdr_right,
+            text="📝 Notes & Audio",
+            width=125,
+            fg_color=("gray80", "gray25"),
+            text_color=("black", "white"),
+            command=self._open_notes
+        )
+        btn_notes.pack(side="left", padx=5)
 
         # Diagnostics Button
         btn_diag = ctk.CTkButton(
@@ -270,6 +284,17 @@ class StudyLauncherApp(ctk.CTk):
         )
         self.btn_launch.pack(side="right")
 
+        self.btn_restore = ctk.CTkButton(
+            launch_container,
+            text="↺ Restore Apps",
+            width=115,
+            height=34,
+            fg_color=("gray80", "gray30"),
+            text_color=("black", "white"),
+            command=self._restore_closed_apps
+        )
+        # Hidden initially; packed when distractions are closed
+
         self.lbl_status = ctk.CTkLabel(
             launch_container,
             text="Ready to launch",
@@ -288,6 +313,9 @@ class StudyLauncherApp(ctk.CTk):
         ctk.set_appearance_mode(new_theme)
         self.config["theme"] = new_theme
         save_config(self.config)
+
+    def _open_notes(self):
+        StudyNotesDialog(self, self.config)
 
     def _open_settings(self):
         SettingsDialog(self, self.config, on_save_callback=self._on_settings_saved)
@@ -727,6 +755,41 @@ class StudyLauncherApp(ctk.CTk):
             if subj and subj.strip():
                 context["subject"] = subj.strip()
 
+        # Check for distracting applications if configured
+        if self.config.get("prompt_close_distractions", True):
+            distractions = DistractionBlocker.get_running_distractions()
+            if distractions:
+                def on_confirm_close(chosen_apps):
+                    if chosen_apps:
+                        count, closed_records = DistractionBlocker.close_processes(chosen_apps)
+                        self.closed_distractions.extend(closed_records)
+                        self._update_restore_btn()
+                        self.lbl_status.configure(text=f"Closed {count} distracting process(es).", text_color=COLOR_WARNING)
+                    self._start_launch_sequence(enabled_items, context)
+
+                DistractionBlockerDialog(self, distractions, on_confirm_callback=on_confirm_close)
+                return
+
+        self._start_launch_sequence(enabled_items, context)
+
+    def _update_restore_btn(self):
+        try:
+            if self.closed_distractions:
+                self.btn_restore.pack(side="right", padx=(0, 10))
+            else:
+                self.btn_restore.pack_forget()
+        except Exception:
+            pass
+
+    def _restore_closed_apps(self):
+        if not self.closed_distractions:
+            return
+        reopened = DistractionBlocker.restore_processes(self.closed_distractions)
+        self.closed_distractions.clear()
+        self._update_restore_btn()
+        self.lbl_status.configure(text=f"Restored {reopened} application(s).", text_color=COLOR_SUCCESS)
+
+    def _start_launch_sequence(self, enabled_items: List[Dict[str, Any]], context: Dict[str, str]):
         self.is_launching = True
         self._cancel_launch = False
         self.btn_launch.configure(state="disabled", text="⏳ Launching...")

@@ -89,4 +89,43 @@ This document records the automated testing, code analysis, bug fixes, UI/UX pol
 
 ---
 
+## Round 3 - Distraction Blocker, Study Scratchpad & Goals, Ambient Audio Streams
+
+### What Was Tested
+- Automated tests via `pytest tests/test_round3_features.py`:
+  - Process scanning against active blocklist using mock process trees.
+  - Graceful termination and safe 1-click restore logic (`DistractionBlocker`).
+  - Ambient audio stream preset integrity and browser dispatch safety.
+  - Programmatic UI testing of `StudyNotesDialog` (note persistence, goal addition, goal toggles, goal deletion).
+- Full regression suite of 50 tests passing across all components.
+
+### Bugs Found & Fixed
+- **Settings Dialog Distortion**: Added dedicated checkbox for distraction blocking in `SettingsDialog` without altering the window height or causing clipping.
+- **Cancel Launch Flag with Distraction Blocker**: Integrated distraction blocker confirmation callback into main window's launch workflow without blocking the Tkinter UI thread or deadlocking the launch worker.
+- **Restore Distraction Process Safety**: Added path validation and safety checks in `DistractionBlocker.restore_processes()` to ensure non-existent or inaccessible executables do not raise unhandled exceptions.
+
+### Features Added
+1. **Distraction Blocker (`core/distraction_blocker.py` & `DistractionBlockerDialog`)**:
+   - Detects running gaming and social applications (Steam, Discord, Epic Games Launcher, Riot Client, Battle.net, Telegram, Spotify).
+   - Before launching Study Mode, prompts the user with an interactive checklist of detected distractions to close.
+   - Gracefully terminates selected processes and records their exact executable paths.
+   - Provides a "↺ Restore Apps" button in the bottom status bar to restore all closed applications with 1 click when the study session ends.
+2. **Study Focus Scratchpad & Goals Checklist (`ui/notes_widget.py`)**:
+   - Built-in scratchpad for quick notes that persists automatically across app sessions.
+   - Interactive study goals checklist where users can type goals, check them off, or delete them.
+3. **Ambient Focus Audio Presets (`core/ambient_audio.py`)**:
+   - Curated focus audio streams directly integrated into the Study Notes dialog: ☕ Lofi Study Beats, 🌧️ Gentle Rain & Thunder, 🎻 Classical Study Focus, and 🧠 40Hz Gamma Focus Waves.
+   - 1-click launch in user's browser.
+
+### UI & Text Changes
+- Added **"📝 Notes & Audio"** button to the main window top header.
+- Added dynamic **"↺ Restore Apps"** button to the bottom action bar that appears whenever apps have been closed.
+- Added Distraction Blocker toggle to `SettingsDialog`.
+
+### Plan for Round 4
+- Built-in Pomodoro / Focus Timer (`core/pomodoro.py`) with customizable intervals (25/5 min, 50/10 min), visual countdown pill on main window, and notification alarms.
+- Study Session Tracker & Analytics (`core/session_tracker.py` & `ui/stats_dialog.py`) with session history, total focus minutes, weekly charts, and CSV/JSON export.
+
+---
+
 

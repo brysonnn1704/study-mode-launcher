@@ -106,6 +106,26 @@ Presets let you switch between study workspaces based on your workflow:
 
 ---
 
+## 🛑 Distraction Blocker & Safe Restore
+
+Study Mode Launcher can detect active gaming and social apps before your study session begins:
+1. When you click **Launch Study Mode**, if gaming or social apps (Steam, Discord, Epic Games, Riot Client, Spotify, etc.) are running, you will be prompted with a checklist.
+2. Select which apps you want to close and click **Close Selected Apps** (or click *Skip*).
+3. The launcher terminates them gracefully and logs their exact executable paths.
+4. When your study session is done, click **↺ Restore Apps** in the bottom status bar to reopen all of them with one click!
+5. This behavior can be toggled anytime in **⚙️ Settings**.
+
+---
+
+## 📝 Study Focus Scratchpad & Ambient Audio
+
+Click the **📝 Notes & Audio** button in the header bar to open your focus workspace:
+- **🎧 Ambient Focus Audio**: Choose from curated background streams (☕ Lofi Study Beats, 🌧️ Gentle Rain & Thunder, 🎻 Classical Focus, 🧠 40Hz Gamma Focus Waves) and click *Play Stream*.
+- **📝 Quick Notes**: Jot down formulas, reminders, or references that persist automatically across sessions.
+- **✅ Study Goals Checklist**: Add assignments, deadlines, or daily goals and check them off as you finish.
+
+---
+
 ## ⚙️ How to Enable Windows Startup Launch
 
 1. Click the **⚙️ Settings** button in the top right.

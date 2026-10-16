@@ -21,11 +21,106 @@ from core.config import save_config
 from core.system import StartupManager
 from core.diagnostics import run_diagnostics, DiagnosticReport
 from core.app_detector import detect_available_apps
+from core.distraction_blocker import DistractionBlocker
 from ui.theme import (
     FONT_TITLE, FONT_HEADING, FONT_BODY, FONT_BODY_BOLD, FONT_CAPTION,
     COLOR_PRIMARY, COLOR_PRIMARY_HOVER, COLOR_SUCCESS, COLOR_SUCCESS_HOVER,
     COLOR_WARNING, COLOR_DANGER
 )
+
+class DistractionBlockerDialog(ctk.CTkToplevel):
+    """Prompts the user to close detected distracting applications."""
+
+    def __init__(self, parent, running_apps: List[Dict[str, Any]], on_confirm_callback: Callable[[List[Dict[str, Any]]], None]):
+        super().__init__(parent)
+        self.parent = parent
+        self.running_apps = running_apps
+        self.on_confirm_callback = on_confirm_callback
+        self.selected_vars: Dict[str, ctk.BooleanVar] = {}
+
+        self.title("Close Distracting Apps?")
+        self.geometry("520x440")
+        self.minsize(480, 380)
+
+        self.after(10, self._center_over_parent)
+        self.transient(parent)
+        self.grab_set()
+
+        self._build_ui()
+
+    def _center_over_parent(self):
+        try:
+            px = self.parent.winfo_rootx()
+            py = self.parent.winfo_rooty()
+            pw = self.parent.winfo_width()
+            ph = self.parent.winfo_height()
+            x = px + (pw - 520) // 2
+            y = py + (ph - 440) // 2
+            self.geometry(f"+{max(50, x)}+{max(50, y)}")
+        except Exception:
+            pass
+
+    def _build_ui(self):
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=25, pady=20)
+
+        ctk.CTkLabel(content, text="🛑 Close Distracting Applications?", font=FONT_TITLE).pack(anchor="w")
+        ctk.CTkLabel(
+            content,
+            text=f"Study Mode Launcher detected {len(self.running_apps)} running gaming/social application(s). "
+                 f"Close them now to keep your focus?",
+            font=FONT_CAPTION,
+            text_color="gray",
+            wraplength=460,
+            justify="left"
+        ).pack(anchor="w", pady=(4, 12))
+
+        # Checkbox list
+        scroll = ctk.CTkScrollableFrame(content, corner_radius=8)
+        scroll.pack(fill="both", expand=True, pady=6)
+
+        for app in self.running_apps:
+            name = app["name"]
+            var = ctk.BooleanVar(value=True)
+            self.selected_vars[name] = var
+
+            row = ctk.CTkFrame(scroll, corner_radius=6, fg_color=("gray95", "gray19"))
+            row.pack(fill="x", pady=3)
+
+            chk = ctk.CTkCheckBox(
+                row,
+                text=f"{name} (PIDs: {', '.join(str(p) for p in app['pids'][:3])})",
+                variable=var,
+                font=FONT_BODY
+            )
+            chk.pack(side="left", padx=10, pady=8)
+
+        # Buttons
+        bottom_bar = ctk.CTkFrame(self, fg_color="transparent")
+        bottom_bar.pack(fill="x", side="bottom", padx=25, pady=15)
+
+        ctk.CTkButton(
+            bottom_bar,
+            text="Skip (Keep Running)",
+            fg_color="transparent",
+            border_width=1,
+            text_color=("gray10", "gray90"),
+            command=self.destroy
+        ).pack(side="left")
+
+        ctk.CTkButton(
+            bottom_bar,
+            text="Close Selected Apps",
+            fg_color=COLOR_DANGER,
+            hover_color="#DC2626",
+            command=self._confirm_close
+        ).pack(side="right")
+
+    def _confirm_close(self):
+        chosen = [app for app in self.running_apps if self.selected_vars[app["name"]].get()]
+        if self.on_confirm_callback:
+            self.on_confirm_callback(chosen)
+        self.destroy()
 
 class ItemDialog(ctk.CTkToplevel):
     """Adaptive modal dialog for adding or editing items."""
@@ -646,7 +741,15 @@ class SettingsDialog(ctk.CTkToplevel):
             text="Close launcher automatically after launching",
             variable=self.var_close
         )
-        self.chk_close.pack(anchor="w", padx=15, pady=(6, 12))
+        self.chk_close.pack(anchor="w", padx=15, pady=6)
+
+        self.var_distractions = ctk.BooleanVar(value=self.config.get("prompt_close_distractions", True))
+        self.chk_distractions = ctk.CTkCheckBox(
+            sys_box,
+            text="Check & close distracting gaming/social apps on launch",
+            variable=self.var_distractions
+        )
+        self.chk_distractions.pack(anchor="w", padx=15, pady=(6, 12))
 
         # 3. Global Hotkey
         hk_box = ctk.CTkFrame(content, corner_radius=8)
@@ -765,6 +868,7 @@ class SettingsDialog(ctk.CTkToplevel):
 
         self.config["minimize_to_tray"] = self.var_tray.get()
         self.config["close_after_launch"] = self.var_close.get()
+        self.config["prompt_close_distractions"] = self.var_distractions.get()
         self.config["enable_hotkey"] = self.var_enable_hotkey.get()
         self.config["global_hotkey"] = self.entry_hotkey.get().strip().lower()
 
