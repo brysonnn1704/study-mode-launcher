@@ -291,4 +291,38 @@ This document records the automated testing, code analysis, bug fixes, UI/UX pol
 
 ---
 
+## Round 8 - Final Hardening, 120-Item Workspace Stress Testing & Production Executable Release
+
+### What Was Tested
+- Automated tests via `pytest tests/test_round8_hardening.py` and full test suite (`pytest -v` across all 11 test modules, 74 tests total):
+  - `test_120_items_stress_and_filtering`: Populated workspace with 120 items, verified rendering stability, stats counter formatting ("120 of 120 items (60 enabled)"), dynamic search filtering responsiveness under high item counts, and clear-search performance.
+  - `test_cli_nonexistent_preset_exit_code`: Verified CLI exits with code 1 and prints available presets when passed an invalid preset name.
+  - `test_cli_missing_preset_argument`: Verified CLI exits with code 1 and prints clear usage when `--preset` has no value.
+  - `test_variable_substitution_extreme_cases`: Tested variable engine with missing, repeated, nested, and unrecognized tags, as well as `None` and empty string inputs.
+  - `test_window_manager_invalid_hwnd`: Verified `apply_window_position` handles invalid HWNDs gracefully without raising Windows system exceptions.
+  - `test_app_detector_healthy`: Verified detected applications comply with all required schema attributes.
+- Production PyInstaller Executable (`dist/StudyModeLauncher.exe`):
+  - Built standalone binary via `build.bat` with `--onefile --noconsole --name "StudyModeLauncher" --collect-all customtkinter`.
+  - Verified executable size: ~32.8 MB self-contained bundle.
+  - Verified headless CLI operations directly from `dist/StudyModeLauncher.exe`:
+    - `dist\StudyModeLauncher.exe --help` (exits 0 with usage instructions)
+    - `dist\StudyModeLauncher.exe --preset "Chill Mode"` (exits 0 with preset activation)
+    - `dist\StudyModeLauncher.exe --diagnostics` (exits 0 with full setup diagnosis report from binary bundle)
+
+### Bugs Found & Fixed
+- **CLI Non-Existent Preset Handling**: Ensured that querying a non-existent preset returns exit code 1 with actionable list of available presets rather than continuing to launch unconfigured default items.
+- **Variable Substitution Safe Defaults**: Ensured `substitute_variables(None, None)` safely returns `None` and does not raise attribute errors on `NoneType`.
+- **Invalid HWND Protection**: Ensured User32 window positioning functions safely validate HWND before invoking Win32 `ShowWindow` / `SetWindowPos`.
+
+### Deliverables & Build Verification
+1. `dist/StudyModeLauncher.exe`: Fully self-contained single-file executable for Windows 10/11.
+2. `dist/config.json`: Bundled alongside the executable with default profiles (ChatGPT, Google Classroom, WhatsApp Desktop) and built-in presets.
+3. 74 automated tests passing across 11 test modules with 100% pass rate.
+
+### Stop Condition Assessment
+- **Requirement Met**: Completed 8 full improvement cycles.
+- **Stability**: Zero open critical or high issues; all 74 tests passing; edge cases and 120-item stress testing confirmed robust.
+- **Feature Completeness**: All requested user capabilities, backlog extensions, and system integrations are fully operational.
+
+
 
