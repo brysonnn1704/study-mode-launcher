@@ -126,6 +126,25 @@ Click the **📝 Notes & Audio** button in the header bar to open your focus wor
 
 ---
 
+## 🍅 Built-in Pomodoro Focus Timer
+
+The presets toolbar includes an embedded Pomodoro countdown timer:
+- **Modes**: Choose between **25m Focus**, **50m Deep Work**, **5m Short Break**, and **10m Long Break**.
+- **Controls**: Use `▶` to start/resume, `⏸` to pause, and `↺` to reset.
+- **Alarms**: Plays a Windows notification chime when your time is up and suggests taking a break or starting your next focus session.
+- **Auto-Start**: In **⚙️ Settings**, enable *"Automatically start Pomodoro timer when launching"* to start your countdown the second you hit Launch Study Mode!
+
+---
+
+## 📊 Study Session Analytics & CSV Export
+
+Click the **📊 Stats** button in the header to view your study analytics:
+- **Daily & All-Time Stats**: View today's study minutes, total focus hours, session count, and your most frequently used preset.
+- **Session History Log**: See every past study session with timestamps, presets, item counts, and durations.
+- **Export CSV**: Download a clean `.csv` file of your study records for personal tracking or habit reviews.
+
+---
+
 ## ⚙️ How to Enable Windows Startup Launch
 
 1. Click the **⚙️ Settings** button in the top right.

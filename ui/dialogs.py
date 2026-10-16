@@ -749,7 +749,15 @@ class SettingsDialog(ctk.CTkToplevel):
             text="Check & close distracting gaming/social apps on launch",
             variable=self.var_distractions
         )
-        self.chk_distractions.pack(anchor="w", padx=15, pady=(6, 12))
+        self.chk_distractions.pack(anchor="w", padx=15, pady=6)
+
+        self.var_auto_pomodoro = ctk.BooleanVar(value=self.config.get("auto_start_pomodoro", False))
+        self.chk_auto_pomodoro = ctk.CTkCheckBox(
+            sys_box,
+            text="Automatically start Pomodoro timer when launching",
+            variable=self.var_auto_pomodoro
+        )
+        self.chk_auto_pomodoro.pack(anchor="w", padx=15, pady=(6, 12))
 
         # 3. Global Hotkey
         hk_box = ctk.CTkFrame(content, corner_radius=8)
@@ -869,6 +877,7 @@ class SettingsDialog(ctk.CTkToplevel):
         self.config["minimize_to_tray"] = self.var_tray.get()
         self.config["close_after_launch"] = self.var_close.get()
         self.config["prompt_close_distractions"] = self.var_distractions.get()
+        self.config["auto_start_pomodoro"] = self.var_auto_pomodoro.get()
         self.config["enable_hotkey"] = self.var_enable_hotkey.get()
         self.config["global_hotkey"] = self.entry_hotkey.get().strip().lower()
 

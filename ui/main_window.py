@@ -29,8 +29,11 @@ from core.launcher import LaunchEngine
 from core.presets import PresetManager, create_desktop_shortcut
 from core.system import HotkeyManager
 from core.distraction_blocker import DistractionBlocker
+from core.pomodoro import PomodoroTimer
+from core.session_tracker import SessionTracker
 from ui.dialogs import ItemDialog, SettingsDialog, DiagnosticsDialog, AppSuggestionsDialog, DistractionBlockerDialog
 from ui.notes_widget import StudyNotesDialog
+from ui.stats_dialog import SessionStatsDialog
 from ui.theme import (
     FONT_TITLE, FONT_HEADING, FONT_SUBHEADING, FONT_BODY, FONT_BODY_BOLD, FONT_CAPTION,
     COLOR_PRIMARY, COLOR_PRIMARY_HOVER, COLOR_SUCCESS, COLOR_SUCCESS_HOVER,
@@ -50,6 +53,11 @@ class StudyLauncherApp(ctk.CTk):
         self._cancel_launch = False
         self.tray_icon = None
         self.closed_distractions: List[Dict[str, Any]] = []
+
+        # Pomodoro Focus Timer
+        self.pomodoro = PomodoroTimer()
+        self.pomodoro.on_tick_callback = self._on_pomodoro_tick
+        self.pomodoro.on_complete_callback = self._on_pomodoro_complete
 
         # CustomTkinter initial appearance
         theme = self.config.get("theme", "dark")
@@ -143,6 +151,17 @@ class StudyLauncherApp(ctk.CTk):
         )
         btn_diag.pack(side="left", padx=5)
 
+        # Stats & Analytics Button
+        btn_stats = ctk.CTkButton(
+            hdr_right,
+            text="📊 Stats",
+            width=85,
+            fg_color=("gray80", "gray25"),
+            text_color=("black", "white"),
+            command=self._open_stats
+        )
+        btn_stats.pack(side="left", padx=5)
+
         # Settings Button
         btn_settings = ctk.CTkButton(
             hdr_right,
@@ -200,6 +219,50 @@ class StudyLauncherApp(ctk.CTk):
             hover_color=COLOR_PRIMARY_HOVER,
             command=self._create_preset_desktop_shortcut
         ).pack(side="right")
+
+        # Pomodoro Mini-Controller
+        pomo_box = ctk.CTkFrame(p_inner, fg_color=("gray85", "gray22"), corner_radius=6)
+        pomo_box.pack(side="right", padx=(0, 10))
+
+        self.lbl_pomo_timer = ctk.CTkLabel(
+            pomo_box,
+            text="🍅 25:00",
+            font=FONT_BODY_BOLD,
+            width=68
+        )
+        self.lbl_pomo_timer.pack(side="left", padx=(6, 2), pady=3)
+
+        self.btn_pomo_toggle = ctk.CTkButton(
+            pomo_box,
+            text="▶",
+            width=26,
+            height=24,
+            fg_color=COLOR_SUCCESS,
+            hover_color=COLOR_SUCCESS_HOVER,
+            command=self._toggle_pomodoro
+        )
+        self.btn_pomo_toggle.pack(side="left", padx=2, pady=3)
+
+        self.btn_pomo_reset = ctk.CTkButton(
+            pomo_box,
+            text="↺",
+            width=26,
+            height=24,
+            fg_color=("gray75", "gray30"),
+            text_color=("black", "white"),
+            command=self._reset_pomodoro
+        )
+        self.btn_pomo_reset.pack(side="left", padx=(2, 4), pady=3)
+
+        self.pomo_mode_var = ctk.StringVar(value="25m Focus")
+        self.pomo_mode_menu = ctk.CTkOptionMenu(
+            pomo_box,
+            variable=self.pomo_mode_var,
+            values=["25m Focus", "50m Deep Work", "5m Short Break", "10m Long Break"],
+            width=115,
+            command=self._on_pomo_mode_change
+        )
+        self.pomo_mode_menu.pack(side="left", padx=(2, 6), pady=3)
 
         # 3. Search and Summary Bar
         search_bar = ctk.CTkFrame(self, fg_color="transparent")
@@ -322,6 +385,67 @@ class StudyLauncherApp(ctk.CTk):
 
     def _open_diagnostics(self):
         DiagnosticsDialog(self, self.config)
+
+    def _open_stats(self):
+        SessionStatsDialog(self, self.config)
+
+    # -----------------------------------------------------------------------
+    # Pomodoro Focus Timer Logic
+    # -----------------------------------------------------------------------
+    def _on_pomodoro_tick(self, remaining: int, total: int):
+        self._safe_after(0, lambda: self._update_pomo_display(remaining))
+
+    def _update_pomo_display(self, remaining: int):
+        try:
+            if self.winfo_exists():
+                mins, secs = divmod(remaining, 60)
+                self.lbl_pomo_timer.configure(text=f"🍅 {mins:02d}:{secs:02d}")
+        except Exception:
+            pass
+
+    def _on_pomodoro_complete(self, mode_info: Dict[str, Any]):
+        name = mode_info.get("name", "Timer")
+        is_break = mode_info.get("is_break", False)
+        title = "☕ Break Finished!" if is_break else "🎉 Focus Session Finished!"
+        msg = f"Completed {name}! Time to take a mindful break." if not is_break else f"{name} is over. Ready to start studying?"
+        self._safe_after(0, lambda: self._handle_pomo_done(title, msg))
+
+    def _handle_pomo_done(self, title: str, msg: str):
+        try:
+            if self.winfo_exists():
+                self.btn_pomo_toggle.configure(text="▶", fg_color=COLOR_SUCCESS)
+                messagebox.showinfo(title, msg, parent=self)
+        except Exception:
+            pass
+
+    def _toggle_pomodoro(self):
+        if self.pomodoro.is_running and not self.pomodoro.is_paused:
+            self.pomodoro.pause()
+            self.btn_pomo_toggle.configure(text="▶", fg_color=COLOR_PRIMARY)
+        elif self.pomodoro.is_running and self.pomodoro.is_paused:
+            self.pomodoro.resume()
+            self.btn_pomo_toggle.configure(text="⏸", fg_color=COLOR_WARNING)
+        else:
+            self.pomodoro.start()
+            self.btn_pomo_toggle.configure(text="⏸", fg_color=COLOR_WARNING)
+
+    def _reset_pomodoro(self):
+        self.pomodoro.reset()
+        self.btn_pomo_toggle.configure(text="▶", fg_color=COLOR_SUCCESS)
+        self._update_pomo_display(self.pomodoro.remaining_seconds)
+
+    def _on_pomo_mode_change(self, mode_label: str):
+        mode_map = {
+            "25m Focus": "pomodoro_25",
+            "50m Deep Work": "deep_work_50",
+            "5m Short Break": "short_break_5",
+            "10m Long Break": "long_break_10"
+        }
+        chosen = mode_map.get(mode_label, "pomodoro_25")
+        self.pomodoro.reset()
+        self.pomodoro.set_mode(chosen)
+        self.btn_pomo_toggle.configure(text="▶", fg_color=COLOR_SUCCESS)
+        self._update_pomo_display(self.pomodoro.remaining_seconds)
 
     def _open_app_suggestions(self):
         AppSuggestionsDialog(self, self.config, on_add_callback=self._on_suggested_app_added)
@@ -795,6 +919,16 @@ class StudyLauncherApp(ctk.CTk):
         self.btn_launch.configure(state="disabled", text="⏳ Launching...")
         default_delay = float(self.config.get("default_delay", 1.5))
 
+        # Start tracking study session
+        cur_preset = self.preset_var.get()
+        SessionTracker.start_session(cur_preset, len(enabled_items))
+
+        # Auto-start Pomodoro if configured
+        if self.config.get("auto_start_pomodoro", False):
+            if not self.pomodoro.is_running:
+                self.pomodoro.start()
+                self.btn_pomo_toggle.configure(text="⏸", fg_color=COLOR_WARNING)
+
         def launch_worker():
             failures = []
             success_count = 0
@@ -918,6 +1052,9 @@ class StudyLauncherApp(ctk.CTk):
 
     def _exit_app(self, icon=None, item=None):
         self._cancel_launch = True
+        if SessionTracker.is_session_active():
+            SessionTracker.end_session(self.config)
+        self.pomodoro.reset()
         if self.tray_icon:
             self.tray_icon.stop()
             self.tray_icon = None
@@ -928,6 +1065,9 @@ class StudyLauncherApp(ctk.CTk):
             self._minimize_to_tray()
         else:
             self._cancel_launch = True
+            if SessionTracker.is_session_active():
+                SessionTracker.end_session(self.config)
+            self.pomodoro.reset()
             if self.tray_icon:
                 self.tray_icon.stop()
                 self.tray_icon = None
