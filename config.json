@@ -1,0 +1,61 @@
+{
+  "theme": "dark",
+  "default_delay": 1.5,
+  "auto_start": false,
+  "global_hotkey": "ctrl+alt+s",
+  "enable_hotkey": false,
+  "minimize_to_tray": false,
+  "close_after_launch": false,
+  "active_preset": "Assignment Mode",
+  "presets": {
+    "Assignment Mode": [
+      "item-chatgpt-1",
+      "item-classroom-2",
+      "item-whatsapp-3"
+    ],
+    "Light Study": [
+      "item-chatgpt-1",
+      "item-classroom-2"
+    ],
+    "Chill Mode": []
+  },
+  "items": [
+    {
+      "id": "item-chatgpt-1",
+      "name": "ChatGPT",
+      "type": "website",
+      "target": "https://chatgpt.com",
+      "browser": "Brave",
+      "profile": "College",
+      "new_window": true,
+      "delay": 1.5,
+      "icon": "🤖",
+      "note": "AI research assistant (College profile)",
+      "enabled": true
+    },
+    {
+      "id": "item-classroom-2",
+      "name": "Google Classroom",
+      "type": "website",
+      "target": "https://classroom.google.com/u/1/h/st",
+      "browser": "Brave",
+      "profile": "Entertainment",
+      "new_window": false,
+      "delay": 1.5,
+      "icon": "🎓",
+      "note": "Course assignments and announcements",
+      "enabled": true
+    },
+    {
+      "id": "item-whatsapp-3",
+      "name": "WhatsApp Desktop",
+      "type": "app",
+      "target": "whatsapp:",
+      "fallback_path": "",
+      "delay": 1.5,
+      "icon": "💬",
+      "note": "Study group communication (URI with fallback)",
+      "enabled": true
+    }
+  ]
+}

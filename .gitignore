@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+*.spec
+.pytest_cache/
+.coverage
+htmlcov/
+gesture_mouse/
+hand_landmarker.task
+screenshots/
